@@ -3,8 +3,8 @@ import {createRoot} from 'react-dom/client';
 import {createClient} from '@supabase/supabase-js';
 import './styles.css';
 
-const SUPABASE_URL=import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY=import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL=import.meta.env.VITE_SUPABASE_URL||'https://pkggcyxsmgrzgvgwfpnv.supabase.co';
+const SUPABASE_KEY=import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_NiGMJs5gwHFoj75Nce53lA_81C-pG94';
 const supabase=SUPABASE_URL&&SUPABASE_KEY?createClient(SUPABASE_URL,SUPABASE_KEY):null;
 const DEFAULT_AREAS=[['personal','شخصی'],['health','سلامت'],['persuna','Persuna'],['finance','مالی'],['growth','رشد']];
 const nav=[['today','امروز','Today'],['plan','برنامه','Plan'],['history','تاریخچه','History'],['review','مرور','Review'],['settings','تنظیمات','Settings']];
