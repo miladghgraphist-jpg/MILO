@@ -18,15 +18,16 @@ return <div className="auth"><div className="auth-card"><div className="logo">MI
 
 function App({user}){const [page,setPage]=useState('today'),[tasks,setTasks]=useState([]),[goals,setGoals]=useState([]),[areasData,setAreasData]=useState([]),[focus,setFocus]=useState(''),[energy,setEnergy]=useState(5),[note,setNote]=useState(''),[loading,setLoading]=useState(true),[task,setTask]=useState(''),[area,setArea]=useState('personal'),[priority,setPriority]=useState('medium'),[date,setDate]=useState(today()),[toast,setToast]=useState(''),[editing,setEditing]=useState(null);
 const show=x=>{setToast(x);setTimeout(()=>setToast(''),1600)};
-async function ensureAreas(){if(!supabase)return;const {data}=await supabase.from('areas').select('id,slug,name').eq('user_id',user.id);if(!(data||[]).length){await supabase.from('areas').insert(DEFAULT_AREAS.map((a,i)=>({user_id:user.id,slug:a[0],name:a[1],sort_order:i+1})));}}
-async function load(initial=true){if(initial)setLoading(true);if(!supabase){setLoading(false);return}await ensureAreas();const [t,g,a,f,l]=await Promise.all([
+async function ensureAreas(){if(!supabase)return[];const {data,error}=await supabase.from('areas').select('id,slug,name').eq('user_id',user.id).order('sort_order',{ascending:true});if(error)return[];if((data||[]).length)return data;const {data:created}=await supabase.from('areas').insert(DEFAULT_AREAS.map((a,i)=>({user_id:user.id,slug:a[0],name:a[1],sort_order:i+1}))).select('id,slug,name').order('sort_order',{ascending:true});return created||[];}
+async function load(initial=true){if(initial)setLoading(true);if(!supabase){if(initial)setLoading(false);return}const areaPromise=initial?ensureAreas():Promise.resolve(areasData);const [t,g,a,f,l]=await Promise.all([
 supabase.from('tasks').select('*').eq('user_id',user.id).order('due_date',{ascending:true}).order('created_at',{ascending:false}),
 supabase.from('goals').select('*').eq('user_id',user.id).order('created_at',{ascending:true}),
-supabase.from('areas').select('*').eq('user_id',user.id).order('sort_order',{ascending:true}),
+areaPromise,
 supabase.from('daily_focus').select('*').eq('user_id',user.id).eq('focus_date',date).maybeSingle(),
 supabase.from('daily_logs').select('*').eq('user_id',user.id).eq('log_date',date).maybeSingle()
-]);setTasks(t.data||[]);setGoals(g.data||[]);setAreasData(a.data||[]);setFocus(f.data?.focus_text||'');setEnergy(l.data?.energy||5);setNote(l.data?.notes||'');setLoading(false)}
-useEffect(()=>{load(true)},[date,user.id]);
+]);setTasks(t.data||[]);setGoals(g.data||[]);setAreasData(a||[]);setFocus(f.data?.focus_text||'');setEnergy(l.data?.energy||5);setNote(l.data?.notes||'');if(initial)setLoading(false)}
+useEffect(()=>{load(true)},[]);
+useEffect(()=>{if(tasks.length||areasData.length||goals.length)load(false)},[date]);
 useEffect(()=>{const ch=supabase?.channel('milo-live').on('postgres_changes',{event:'*',schema:'public',table:'tasks',filter:`user_id=eq.\${user.id}`},payload=>{const row=payload.new?.user_id===user.id?payload.new:null;if(payload.eventType==='INSERT'&&row)setTasks(prev=>prev.some(x=>x.id===row.id)?prev:[...prev,row]);else if(payload.eventType==='UPDATE'&&row)setTasks(prev=>prev.map(x=>x.id===row.id?row:x));else if(payload.eventType==='DELETE'&&payload.old?.id)setTasks(prev=>prev.filter(x=>x.id!==payload.old.id))}).subscribe();return()=>{if(ch)supabase.removeChannel(ch)}},[user.id]);
 const dayTasks=useMemo(()=>tasks.filter(t=>t.due_date===date&&t.status!=='cancelled'),[tasks,date]);
 const done=dayTasks.filter(t=>t.status==='done').length,total=dayTasks.length,pct=total?Math.round(done/total*100):0,open=dayTasks.filter(t=>t.status!=='done').length;
