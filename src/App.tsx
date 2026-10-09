@@ -24,6 +24,23 @@ const initialTasks: Task[] = [
   { id: 3, title: 'Take a short walk outside', time: '12:30', category: 'Wellbeing', done: false },
   { id: 4, title: 'Review today’s spending', time: '17:00', category: 'Finance', done: false },
 ]
+function tehranDateTimeToDate(dateKey: string, time: string): Date {
+  const [year, month, day] = dateKey.split('-').map(Number)
+  const [hour, minute] = time.split(':').map(Number)
+  const targetAsUtc = Date.UTC(year, month - 1, day, hour, minute, 0)
+  let timestamp = targetAsUtc
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  })
+  // Resolve the requested Tehran wall-clock time to an absolute instant, independent of device timezone.
+  for (let i = 0; i < 3; i++) {
+    const parts = Object.fromEntries(formatter.formatToParts(new Date(timestamp)).map(part => [part.type, part.value]))
+    const representedAsUtc = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute), Number(parts.second))
+    timestamp += targetAsUtc - representedAsUtc
+  }
+  return new Date(timestamp)
+}
 const tehranDateKey = (date = new Date()) => {
   const parts = new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Tehran' }).formatToParts(date)
   const part = (type: string) => parts.find(item => item.type === type)?.value ?? ''
@@ -189,20 +206,20 @@ export default function App() {
     const event: CalendarEvent = { id: Date.now(), title: eventTitle.trim(), date: eventDate, time: eventTime, reminderMinutes: eventReminder }
     setEvents(old => [...old, event].sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)))
     setEventTitle('')
-    notify('Calendar event saved. Keep Personal OS open for its reminder.')
+    notify('Calendar event saved using Tehran time. Keep Personal OS open for its reminder.')
   }
   const notifiedEvents = useRef<Set<string>>(new Set())
   useEffect(() => {
     const checkReminders = () => {
       const now = new Date()
       events.forEach(event => {
-        const dueAt = new Date(`${event.date}T${event.time}:00`)
+        const dueAt = tehranDateTimeToDate(event.date, event.time)
         const remindAt = new Date(dueAt.getTime() - event.reminderMinutes * 60_000)
         const reminderKey = `${event.id}-${event.date}T${event.time}`
         const lateWindowEnd = new Date(dueAt.getTime() + 15 * 60_000)
         if (now >= remindAt && now <= lateWindowEnd && event.notifiedKey !== `${event.date}T${event.time}` && !notifiedEvents.current.has(reminderKey)) {
           notifiedEvents.current.add(reminderKey)
-          const body = `Scheduled for ${event.time} · ${event.date}`
+          const body = `Scheduled for ${event.time} Tehran time · ${event.date}`
           try {
             if ('Notification' in window && Notification.permission === 'granted') {
               const notification = new Notification(event.title, { body, tag: `personal-os-${event.id}` })
