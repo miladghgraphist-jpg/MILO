@@ -23,7 +23,11 @@ const initialTasks: Task[] = [
   { id: 3, title: 'Take a short walk outside', time: '12:30', category: 'Wellbeing', done: false },
   { id: 4, title: 'Review today’s spending', time: '17:00', category: 'Finance', done: false },
 ]
-const tehranDateKey = (date = new Date()) => new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Tehran' }).format(date)
+const tehranDateKey = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Tehran' }).formatToParts(date)
+  const part = (type: string) => parts.find(item => item.type === type)?.value ?? ''
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
 const dateLabel = new Intl.DateTimeFormat('en', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'Asia/Tehran' }).format(new Date())
 function normalizeTasks(tasks: Task[]): Task[] {
   const today = tehranDateKey()
@@ -141,7 +145,7 @@ export default function App() {
       <div className="brand"><div className="brand-mark"><Sparkles size={21}/></div><div><strong>personal<span>.</span>os</strong><small>YOUR SPACE, YOUR PACE</small></div><button className="icon-btn close-menu" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={18}/></button></div>
       <button className="workspace" onClick={() => notify('Personal space · Settings will be available in a later step')}><div className="avatar">M</div><div><b>My personal space</b><small>Private workspace</small></div><ChevronDown size={15}/></button>
       <div className="nav-label">WORKSPACE</div>
-      <nav>{nav.map(item => <button key={item.name} className={`nav-item ${section === item.name ? 'active' : ''}`} onClick={() => selectSection(item.name)}><item.icon size={18}/><span>{item.name}</span>{item.name === 'Today' && <span className="nav-count">{tasks.filter(t => !t.done).length}</span>}</button>)}</nav>
+      <nav>{nav.map(item => <button key={item.name} className={`nav-item ${section === item.name ? 'active' : ''}`} onClick={() => selectSection(item.name)}><item.icon size={18}/><span>{item.name}</span>{item.name === 'Today' && <span className="nav-count">{todayTasks.filter(t => !t.done).length}</span>}</button>)}</nav>
       <div className="nav-label tools-label">PERSONAL TOOLS</div>
       <nav>{extras.map(item => <button key={item.name} className={`nav-item ${section === item.name ? 'active' : ''}`} onClick={() => selectSection(item.name)}><item.icon size={18}/><span>{item.name}</span></button>)}</nav>
       <div className="sidebar-bottom"><div className="calm-card"><div className="calm-icon"><Flower2 size={19}/></div><b>A little reminder</b><p>You don’t have to do everything. Just the next kind thing.</p><span>ONE STEP AT A TIME</span></div><button className="nav-item" onClick={() => notify('Settings will be added in a later step')}><Settings2 size={18}/><span>Settings</span></button><div className="profile"><div className="avatar">M</div><div><b>My profile</b><small>Personal account</small></div><MoreHorizontal size={19}/></div></div>
