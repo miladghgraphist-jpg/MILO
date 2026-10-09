@@ -66,3 +66,8 @@
 @media(max-width:600px){.trend-grid{grid-template-columns:1fr}.trend-panel{padding:12px}.trend-bars{gap:5px}.trend-bar-area{height:105px}.trend-bars{height:132px}.planner-date-filter{align-items:flex-start;flex-direction:column}}
 
 .report-copy{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex-shrink:0;border:1px solid #e4def5;border-radius:9px;padding:9px 12px;background:#f8f6ff;color:#7764b6;font:inherit;font-size:11px;font-weight:600;cursor:pointer;transition:background .2s,border-color .2s}.report-copy:hover{background:#efebff;border-color:#cfc4f0}.report-copy:focus-visible{outline:2px solid #9382d3;outline-offset:2px}@media(max-width:600px){.report-copy{width:100%;margin-top:8px}.panel-heading:has(.report-copy){align-items:stretch;flex-direction:column}}
+
+
+/* Keep desktop account access obvious in the top bar. */
+.sign-in-trigger { white-space: nowrap; padding: 8px 12px; font-size: 12px; }
+@media (max-width: 560px) { .sign-in-trigger { padding: 7px 9px; font-size: 11px; } }
