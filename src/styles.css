@@ -237,3 +237,16 @@
 .money-in{color:#579a7c}.money-out{color:#c78370}
 @media(max-width:900px){.finance-form{grid-template-columns:repeat(2,minmax(0,1fr))}.finance-form .primary-button{justify-self:start}}
 @media(max-width:600px){.finance-summary-grid{grid-template-columns:1fr}.finance-summary{padding:15px 16px}.finance-form{grid-template-columns:1fr}.finance-form .primary-button{width:100%}.finance-transaction{gap:8px}.finance-transaction>strong{font-size:11px}}
+
+
+.goal-form{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(180px,1fr) auto;align-items:end;gap:12px}
+.goal-form label{display:flex;flex-direction:column;gap:7px;font-size:10px;color:#9691a9}
+.goal-form input{width:100%;min-width:0;border:1px solid #eeeaf6;background:#fbfaff;border-radius:8px;padding:10px;font-size:11px;color:#696181}
+.goal-list{display:flex;flex-direction:column}
+.goal-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid #f3f1f7;min-width:0}
+.goal-row:first-child{border-top:0}
+.goal-main{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}
+.goal-main b{font-size:11px;font-weight:600;color:#5d5a71;overflow-wrap:anywhere}
+.goal-main span{font-size:9px;color:#aaa6b8}
+.goal-complete .goal-main b{text-decoration:line-through;color:#bcb9c8}
+@media(max-width:700px){.goal-form{grid-template-columns:1fr}.goal-form .primary-button{width:100%}}
