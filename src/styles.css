@@ -216,3 +216,18 @@
 }
 
 .task-edit-form{flex-direction:row;align-items:center;gap:6px}.task-edit-form input{min-width:0;width:100%;border:1px solid #e8e4f2;border-radius:7px;padding:7px 8px;background:#fff;color:var(--ink);font-size:11px}.task-edit-form input[type=date]{max-width:145px}.task-edit-form button{flex-shrink:0;border:1px solid #e8e4f2;background:#fff;border-radius:7px;color:#8171c3;padding:6px;display:grid;place-items:center}.task-edit-form button[type=submit]{background:#f0edff;color:#7564bd;border-color:#e5dfff}
+
+
+/* Account status and session management */
+.account-status-panel .settings-section-title{margin-bottom:16px}
+.account-status-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.account-status-list>div{display:flex;flex-direction:column;gap:7px;min-width:0;padding:13px 14px;border:1px solid #eeeaf5;border-radius:11px;background:#fff}
+.account-status-list span{font-size:10px;color:#938da5}
+.account-status-list b{font-size:12px;color:#514b65;overflow-wrap:anywhere}
+.account-status-list .account-status-good{color:#438466}
+.account-status-list .account-status-pending{color:#9a7a48}
+.account-status-note{font-size:11px;line-height:1.7;margin:14px 0 0}
+.session-actions{display:flex;gap:9px;flex-wrap:wrap}
+.settings-signout .session-actions button{white-space:normal}
+.settings-signout .signout-all-button{border-color:#eadada;color:#a06464;background:#fff8f8}
+@media(max-width:600px){.account-status-list{grid-template-columns:1fr}.session-actions{display:flex;flex-direction:column;width:100%}.session-actions button{width:100%}}
