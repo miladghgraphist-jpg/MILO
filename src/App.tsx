@@ -4,10 +4,10 @@ import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookOpen,
   Check, CheckCircle2, ChevronDown, CircleHelp, Clock3, CloudSun, CreditCard,
   Flower2, Heart, LayoutDashboard, ListTodo, Menu, Moon, MoreHorizontal,
-  Plus, Search, Settings2, ShieldCheck, Sparkles, Target, Wind, X
+  Plus, Search, Settings2, ShieldCheck, Sparkles, Target, Wind, X, UserRound, Camera, LockKeyhole, Mail
 } from 'lucide-react'
 
-type Section = 'Today' | 'Planner' | 'Goals' | 'Wellbeing' | 'Finance' | 'Reviews' | 'Anxiety Tracker' | 'Breathe & Focus'
+type Section = 'Today' | 'Planner' | 'Goals' | 'Wellbeing' | 'Finance' | 'Reviews' | 'Anxiety Tracker' | 'Breathe & Focus' | 'Settings'
 type Task = { id: number; title: string; time: string; category: string; done: boolean; scope?: 'today' | 'planner'; date?: string }
 type CalendarEvent = { id: number; title: string; date: string; time: string; reminderMinutes: number; notifiedKey?: string }
 type DailyRecord = { date: string; tasksTotal: number; tasksCompleted: number; mood: string; energy: number; stress: number; reflection: string; updatedAt: string }
@@ -322,7 +322,7 @@ export default function App() {
       <nav>{nav.map(item => <button key={item.name} className={`nav-item ${section === item.name ? 'active' : ''}`} onClick={() => selectSection(item.name)}><item.icon size={18}/><span>{item.name}</span>{item.name === 'Today' && <span className="nav-count">{todayTasks.filter(t => !t.done).length}</span>}</button>)}</nav>
       <div className="nav-label tools-label">PERSONAL TOOLS</div>
       <nav>{extras.map(item => <button key={item.name} className={`nav-item ${section === item.name ? 'active' : ''}`} onClick={() => selectSection(item.name)}><item.icon size={18}/><span>{item.name}</span></button>)}</nav>
-      <div className="sidebar-bottom"><div className="calm-card"><div className="calm-icon"><Flower2 size={19}/></div><b>A little reminder</b><p>You don’t have to do everything. Just the next kind thing.</p><span>ONE STEP AT A TIME</span></div><button className="nav-item" onClick={() => notify('Settings will be added in a later step')}><Settings2 size={18}/><span>Settings</span></button><div className="profile"><div className="avatar">M</div><div><b>My profile</b><small>Personal account</small></div><MoreHorizontal size={19}/></div></div>
+      <div className="sidebar-bottom"><div className="calm-card"><div className="calm-icon"><Flower2 size={19}/></div><b>A little reminder</b><p>You don’t have to do everything. Just the next kind thing.</p><span>ONE STEP AT A TIME</span></div><button className={`nav-item ${section === 'Settings' ? 'active' : ''}`} onClick={() => selectSection('Settings')}><Settings2 size={18}/><span>Settings</span></button><div className="profile"><div className="avatar">M</div><div><b>My profile</b><small>Personal account</small></div><MoreHorizontal size={19}/></div></div>
     </aside>
     {mobileMenu && <button className="scrim" onClick={() => setMobileMenu(false)} aria-label="Close navigation"/>}
     <main className="main">
