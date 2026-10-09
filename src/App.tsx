@@ -102,7 +102,8 @@ export default function App() {
   async function sendSignInLink() {
     if (!supabase) return
     if (!email.trim()) { setCloudMessage('Enter your email address first.'); return }
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin } })
+    const redirectUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: redirectUrl } })
     setCloudMessage(error ? error.message : 'Sign-in link sent. Open the email on this device to connect your account.')
   }
 
