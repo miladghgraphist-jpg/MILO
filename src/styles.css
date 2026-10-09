@@ -71,3 +71,11 @@
 /* Keep desktop account access obvious in the top bar. */
 .sign-in-trigger { white-space: nowrap; padding: 8px 12px; font-size: 12px; }
 @media (max-width: 560px) { .sign-in-trigger { padding: 7px 9px; font-size: 11px; } }
+
+.auth-links { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.auth-links button { border: 0; background: transparent; color: var(--accent, #7864d8); cursor: pointer; font: inherit; font-size: 13px; padding: 5px 0; }
+.cloud-login { flex-wrap: wrap; }
+.cloud-login input { min-width: 180px; }
+@media (max-width: 560px) {
+  .auth-links { align-items: flex-start; }
+}
