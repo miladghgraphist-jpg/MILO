@@ -214,3 +214,5 @@
     flex-basis: 39px;
   }
 }
+
+.task-edit-form{flex-direction:row;align-items:center;gap:6px}.task-edit-form input{min-width:0;width:100%;border:1px solid #e8e4f2;border-radius:7px;padding:7px 8px;background:#fff;color:var(--ink);font-size:11px}.task-edit-form input[type=date]{max-width:145px}.task-edit-form button{flex-shrink:0;border:1px solid #e8e4f2;background:#fff;border-radius:7px;color:#8171c3;padding:6px;display:grid;place-items:center}.task-edit-form button[type=submit]{background:#f0edff;color:#7564bd;border-color:#e5dfff}
