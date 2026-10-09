@@ -212,9 +212,9 @@ export default function App() {
     ];
     weekTimeline.forEach(day => {
       if (!day.record) { lines.push(`- ${day.key}: No saved check-in`); return; }
-      lines.push(`- ${day.key}: Tasks ${day.record.tasksCompleted}/${day.record.tasksTotal}; Mood ${day.record.mood}; Energy ${day.record.energy}/10; Stress ${day.record.stress}/10${day.record.reflection ? `; Reflection: ${day.record.reflection.replace(/\\s+/g, ' ').trim()}` : ''}`);
+      lines.push(`- ${day.key}: Tasks ${day.record.tasksCompleted}/${day.record.tasksTotal}; Mood ${day.record.mood}; Energy ${day.record.energy}/10; Stress ${day.record.stress}/10${day.record.reflection ? `; Reflection: ${day.record.reflection.replace(/\s+/g, ' ').trim()}` : ''}`);
     });
-    return lines.join('\\n');
+    return lines.join('\n');
   }, [weekTimeline, todayKey, weekRecords.length, weekTaskDone, weekTaskTotal, averageEnergy, averageStress]);
   const normalizedQuery = searchQuery.trim().toLowerCase()
   const searchResults = normalizedQuery ? [
