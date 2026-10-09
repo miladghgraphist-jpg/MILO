@@ -66,6 +66,8 @@ export default function App() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [email, setEmail] = useState('')
   const [cloudPanel, setCloudPanel] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [cloudMessage, setCloudMessage] = useState('')
   const [cloudReady, setCloudReady] = useState(false)
 
@@ -73,6 +75,18 @@ export default function App() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, mood, energy, stress, reflection, goal, financeNote, reflections, finance } satisfies SavedState)) }
     catch { /* Storage may be unavailable in private browsing; the app remains usable for this session. */ }
   }, [tasks, mood, energy, stress, reflection, goal, financeNote, reflections, finance])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setSearchOpen(open => !open)
+      }
+      if (event.key === 'Escape') { setSearchOpen(false); setCloudPanel(false) }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   useEffect(() => {
     if (!supabase) return
@@ -131,6 +145,11 @@ export default function App() {
   const dateLabel = useMemo(() => new Intl.DateTimeFormat('en', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'Asia/Tehran' }).format(clock), [clock])
   const todayTasks = tasks.filter(t => (t.scope ?? 'today') === 'today' && (t.date ?? todayKey) === todayKey)
   const completed = todayTasks.filter(t => t.done).length
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const searchResults = normalizedQuery ? [
+    ...tasks.filter(t => `${t.title} ${t.category} ${t.time} ${t.date ?? ''}`.toLowerCase().includes(normalizedQuery)).map(t => ({ title: t.title, detail: `${t.scope === 'planner' ? 'Planner' : 'Today'} · ${t.category}`, section: (t.scope === 'planner' ? 'Planner' : 'Today') as Section })),
+    ...([{ title: 'Goals & intentions', text: goal, section: 'Goals' as Section }, { title: 'Finance note', text: financeNote, section: 'Finance' as Section }, { title: 'Daily reflection', text: reflections[todayKey] ?? reflection, section: 'Reviews' as Section }].filter(item => item.text.toLowerCase().includes(normalizedQuery)).map(item => ({ title: item.title, detail: item.text.slice(0, 90), section: item.section })))
+  ].slice(0, 8) : []
   const greeting = useMemo(() => {
     const hour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Asia/Tehran' }).format(clock))
     return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
@@ -158,8 +177,9 @@ export default function App() {
     </aside>
     {mobileMenu && <button className="scrim" onClick={() => setMobileMenu(false)} aria-label="Close navigation"/>}
     <main className="main">
-      <header className="topbar"><div className="topbar-left"><button className="icon-btn mobile-menu" onClick={() => setMobileMenu(true)} aria-label="Open navigation"><Menu size={20}/></button><div className="crumb">My space <span>/</span> <b>{section}</b></div></div><div className="top-actions"><button className="search-button" onClick={() => notify('Search will be available in a later step')}><Search size={16}/><span>Search anything</span><kbd>⌘ K</kbd></button><button className="icon-btn" onClick={() => notify('You’re all caught up')} aria-label="Notifications"><Bell size={18}/><i/></button><button className="top-avatar cloud-avatar" onClick={() => setCloudPanel(v => !v)} aria-label="Cloud sync account">{user ? '✓' : 'M'}</button></div></header>
+      <header className="topbar"><div className="topbar-left"><button className="icon-btn mobile-menu" onClick={() => setMobileMenu(true)} aria-label="Open navigation"><Menu size={20}/></button><div className="crumb">My space <span>/</span> <b>{section}</b></div></div><div className="top-actions"><button className="search-button" onClick={() => { setSearchOpen(true); setSearchQuery('') }}><Search size={16}/><span>Search anything</span><kbd>⌘ K</kbd></button><button className="icon-btn" onClick={() => notify('You’re all caught up')} aria-label="Notifications"><Bell size={18}/><i/></button><button className="top-avatar cloud-avatar" onClick={() => setCloudPanel(v => !v)} aria-label="Cloud sync account">{user ? '✓' : 'M'}</button></div></header>
       <div className="page-content">
+        {searchOpen && <div className="search-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setSearchOpen(false) }}><section className="search-dialog" role="dialog" aria-modal="true" aria-label="Search your personal workspace"><div className="search-input-row"><Search size={18}/><input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search tasks, goals, notes…"/><button className="icon-btn" onClick={() => setSearchOpen(false)} aria-label="Close search"><X size={17}/></button></div>{!normalizedQuery ? <p className="search-helper">Search your tasks, saved intentions, finance notes and today’s reflection.</p> : searchResults.length ? <div className="search-results">{searchResults.map((result, index) => <button key={`${result.section}-${result.title}-${index}`} className="search-result" onClick={() => { selectSection(result.section); setSearchOpen(false); setSearchQuery('') }}><span><b>{result.title}</b><small>{result.detail}</small></span><ArrowRight size={15}/></button>)}</div> : <div className="search-empty">No matches found. Try another word.</div>}<div className="search-foot"><span>PERSONAL OS SEARCH</span><kbd>ESC</kbd><span>to close</span></div></section></div>}
         {notice && <div className="notice"><CheckCircle2 size={16}/>{notice}<button onClick={() => setNotice('')}><X size={14}/></button></div>}
         {cloudPanel && <section className="panel generic-panel cloud-panel">
           <div className="panel-heading"><div><h3>Private cloud sync</h3><p>{user ? `Connected as ${user.email ?? 'your account'}` : 'Use a secure email link to sync your personal workspace.'}</p></div><button className="icon-btn" onClick={() => setCloudPanel(false)} aria-label="Close cloud sync"><X size={16}/></button></div>
