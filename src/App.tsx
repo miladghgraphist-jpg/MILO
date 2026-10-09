@@ -99,21 +99,22 @@ export default function App() {
     document.documentElement.lang = language
     document.documentElement.dir = language === 'fa' ? 'rtl' : 'ltr'
     document.body.classList.toggle('locale-fa', language === 'fa')
+    const reverseFaText = Object.fromEntries(Object.entries(faText).map(([english, persian]) => [persian, english])) as Record<string, string>
     const translateDom = () => {
-      if (language !== 'fa') return
+      const dictionary = language === 'fa' ? faText : reverseFaText
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
       const nodes: Text[] = []
       while (walker.nextNode()) nodes.push(walker.currentNode as Text)
       for (const node of nodes) {
         const original = node.textContent ?? ''
         const key = original.trim()
-        const translated = faText[key]
+        const translated = dictionary[key]
         if (translated && original.includes(key)) node.textContent = original.replace(key, translated)
       }
       document.querySelectorAll<HTMLElement>('[placeholder],[aria-label],[title]').forEach(el => {
         for (const attr of ['placeholder', 'aria-label', 'title'] as const) {
           const value = el.getAttribute(attr)
-          if (value && faText[value]) el.setAttribute(attr, faText[value])
+          if (value && dictionary[value]) el.setAttribute(attr, dictionary[value])
         }
       })
     }
