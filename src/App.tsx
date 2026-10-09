@@ -89,10 +89,11 @@ export default function App() {
   }, [user?.id])
 
   useEffect(() => {
-    if (!supabase || !user || !cloudReady) return
+    const client = supabase
+    if (!client || !user || !cloudReady) return
     const timer = window.setTimeout(async () => {
       const payload = { tasks, mood, energy, stress, reflection, finance }
-      const { error } = await supabase.from('user_workspace').upsert({ user_id: user.id, data: payload }, { onConflict: 'user_id' })
+      const { error } = await client.from('user_workspace').upsert({ user_id: user.id, data: payload }, { onConflict: 'user_id' })
       setCloudMessage(error ? 'Cloud sync issue. Your data is still saved on this device.' : 'Synced securely to your private account.')
     }, 650)
     return () => window.clearTimeout(timer)
@@ -138,7 +139,7 @@ export default function App() {
         {notice && <div className="notice"><CheckCircle2 size={16}/>{notice}<button onClick={() => setNotice('')}><X size={14}/></button></div>}
         {cloudPanel && <section className="panel generic-panel cloud-panel">
           <div className="panel-heading"><div><h3>Private cloud sync</h3><p>{user ? `Connected as ${user.email ?? 'your account'}` : 'Use a secure email link to sync your personal workspace.'}</p></div><button className="icon-btn" onClick={() => setCloudPanel(false)} aria-label="Close cloud sync"><X size={16}/></button></div>
-          {!supabase ? <p className="muted">Cloud sync needs the app’s Supabase environment settings before it can connect.</p> : user ? <div className="cloud-actions"><p className="muted">Your workspace is protected by account-level database policies.</p><button className="soft-button" onClick={async () => { await supabase.auth.signOut(); setUser(null); setCloudMessage('Signed out. Local data remains on this device.') }}>Sign out</button></div> : <form className="add-task cloud-login" onSubmit={e => { e.preventDefault(); void sendSignInLink() }}><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Your email address" autoComplete="email" required/><button type="submit">Send secure link</button></form>}
+          {!supabase ? <p className="muted">Cloud sync needs the app’s Supabase environment settings before it can connect.</p> : user ? <div className="cloud-actions"><p className="muted">Your workspace is protected by account-level database policies.</p><button className="soft-button" onClick={async () => { await supabase?.auth.signOut(); setUser(null); setCloudMessage('Signed out. Local data remains on this device.') }}>Sign out</button></div> : <form className="add-task cloud-login" onSubmit={e => { e.preventDefault(); void sendSignInLink() }}><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Your email address" autoComplete="email" required/><button type="submit">Send secure link</button></form>}
           {cloudMessage && <p className="cloud-message">{cloudMessage}</p>}
         </section>}
 
