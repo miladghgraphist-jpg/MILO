@@ -368,8 +368,8 @@ export default function App() {
         </div>
         <div className="login-heading">
           <span className="login-eyebrow">{authMode === 'reset' ? 'ACCOUNT RECOVERY' : authMode === 'update' ? 'SECURE YOUR ACCOUNT' : 'YOUR SPACE, YOUR PACE'}</span>
-          <h1>{authMode === 'reset' ? 'Reset password' : authMode === 'update' ? 'Choose a new password' : 'Welcome back'}</h1>
-          <p>{authMode === 'reset' ? 'We’ll send you a secure reset link.' : authMode === 'update' ? 'Set a new password for your account.' : 'Sign in to your personal space.'}</p>
+          <h1>{authMode === 'reset' ? 'Reset password' : authMode === 'update' ? 'Choose a new password' : authMode === 'signup' ? 'Create account' : 'Welcome back'}</h1>
+          <p>{authMode === 'reset' ? 'We’ll send you a secure reset link.' : authMode === 'update' ? 'Set a new password for your account.' : authMode === 'signup' ? 'Create your private workspace.' : 'Sign in to your personal space.'}</p>
         </div>
         {!supabase && <p className="login-message login-error">Sign-in is unavailable because authentication is not configured.</p>}
         <form className="login-form" onSubmit={e=>{e.preventDefault();void handleAuthSubmit()}}>
@@ -379,7 +379,7 @@ export default function App() {
           <button className="login-submit" type="submit" disabled={profileSaving || !supabase}>{profileSaving ? 'Please wait…' : authMode === 'reset' ? 'Send reset link' : authMode === 'update' ? 'Save new password' : 'Sign in'}<ArrowRight size={15}/></button>
         </form>
         {cloudMessage && <p className={`login-message ${/could not|incorrect|failed|unavailable|error|temporarily|limited|not configured/i.test(cloudMessage)?'login-error':'login-success'}`} role="status">{cloudMessage}</p>}
-        {authMode !== 'signin' && authMode !== 'update' && <button className="login-back" onClick={()=>{setAuthMode('signin');setCloudMessage('');setPassword('')}}>Back to sign in</button>}
+        {authMode === 'signin' && <button className="login-back" onClick={()=>{setAuthMode('signup');setCloudMessage('');setPassword('')}}>Create account</button>}{authMode !== 'signin' && authMode !== 'update' && <button className="login-back" onClick={()=>{setAuthMode('signin');setCloudMessage('');setPassword('')}}>Back to sign in</button>}
         <div className="login-footer"><span className="login-footer-dot"/> PRIVATE PERSONAL WORKSPACE</div>
       </section>
     </main>
