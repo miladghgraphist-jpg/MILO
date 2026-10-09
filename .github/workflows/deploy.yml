@@ -21,7 +21,11 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      - run: npm run build
+      - name: Build app with public Supabase configuration
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://jxjmsfnusizolwgnlvuy.supabase.co
+          VITE_SUPABASE_ANON_KEY: sb_publishable_581SaP08RVDN4eOPgLdAlw_s2QzekiR
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
