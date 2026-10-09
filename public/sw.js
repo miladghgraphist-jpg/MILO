@@ -1,4 +1,4 @@
-const CACHE_NAME = 'personal-os-shell-v1';
+const CACHE_NAME = 'personal-os-shell-v2';
 const APP_BASE = '/personal-app/';
 const APP_SHELL = [APP_BASE, APP_BASE + 'index.html', APP_BASE + 'manifest.webmanifest', APP_BASE + 'icon.svg'];
 
@@ -36,13 +36,13 @@ self.addEventListener('fetch', (event) => {
 
   if (url.pathname.startsWith(APP_BASE)) {
     event.respondWith(
-      caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+      fetch(request).then((response) => {
         if (response.ok) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         }
         return response;
-      }))
+      }).catch(async () => (await caches.match(request)) || Response.error())
     );
   }
 });
