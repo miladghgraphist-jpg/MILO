@@ -103,3 +103,114 @@
 .settings-recovery{border-top:1px solid var(--line);margin-top:18px;padding-top:16px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}.settings-recovery .muted{margin:0;max-width:680px;line-height:1.7}.settings-recovery button{white-space:normal;text-align:center;max-width:100%}.settings-form button:disabled,.settings-recovery button:disabled{opacity:.6;cursor:wait}
 
 .profile-button{width:100%;border:0;background:transparent;text-align:left;color:inherit;cursor:pointer}.profile-button:hover{background:#faf9ff;border-radius:10px}.avatar img,.top-avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit}.remove-photo{margin:10px 0 0 6px;color:#b47777}
+
+
+/* Account settings refinement — clearer hierarchy, calmer spacing, and stronger action affordances */
+.page-content:has(.settings-section-title) .page-title { margin-bottom: 30px; }
+.page-content:has(.settings-section-title) .page-title h1 { letter-spacing: -0.035em; }
+.page-content:has(.settings-section-title) .generic-panel:has(.settings-section-title) {
+  position: relative;
+  padding: 25px 26px;
+  border: 1px solid #e8e4f0;
+  border-radius: 16px;
+  box-shadow: 0 5px 18px rgba(44, 35, 75, .035);
+  background: linear-gradient(145deg, #fff 0%, #fdfcff 100%);
+}
+.page-content:has(.settings-section-title) .settings-section-title {
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid #efedf5;
+  margin-bottom: 20px;
+}
+.page-content:has(.settings-section-title) .settings-section-title .round-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 13px;
+}
+.page-content:has(.settings-section-title) .settings-section-title h3 {
+  color: #373247;
+  font-size: 15px;
+  letter-spacing: -.015em;
+}
+.page-content:has(.settings-section-title) .settings-section-title .muted {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.page-content:has(.settings-section-title) .profile-editor {
+  padding: 3px 0 5px;
+  gap: 16px;
+}
+.page-content:has(.settings-section-title) .profile-photo-large {
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px #e5def5, 0 5px 14px rgba(63, 49, 104, .09);
+}
+.page-content:has(.settings-section-title) .settings-form {
+  max-width: 620px;
+  gap: 15px;
+}
+.page-content:has(.settings-section-title) .settings-form label {
+  gap: 8px;
+  color: #777187;
+  font-size: 11px;
+  font-weight: 600;
+}
+.page-content:has(.settings-section-title) .settings-form input {
+  min-height: 43px;
+  border-color: #e5e1ee;
+  border-radius: 10px;
+  background: #fff;
+  transition: border-color .16s, box-shadow .16s;
+}
+.page-content:has(.settings-section-title) .settings-form input:focus {
+  border-color: #a99ae0;
+  box-shadow: 0 0 0 3px rgba(145, 126, 211, .12);
+  outline: 0;
+}
+.page-content:has(.settings-section-title) .settings-form button,
+.page-content:has(.settings-section-title) .settings-recovery button,
+.page-content:has(.settings-section-title) .settings-signout button {
+  min-height: 40px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.page-content:has(.settings-section-title) .settings-recovery {
+  margin-top: 21px;
+  padding: 18px 18px 4px;
+  border: 1px solid #eee9f7;
+  border-radius: 12px;
+  background: #faf8ff;
+}
+.page-content:has(.settings-section-title) .settings-recovery .muted {
+  font-size: 11px;
+  line-height: 1.75;
+}
+.page-content:has(.settings-section-title) .settings-signout {
+  border-color: #eee3e3;
+  background: linear-gradient(145deg, #fff 0%, #fffafa 100%);
+}
+.page-content:has(.settings-section-title) .settings-signout h3 {
+  font-size: 14px;
+  color: #51434a;
+}
+.page-content:has(.settings-section-title) .settings-signout button {
+  border-color: #eadada;
+  color: #a06464;
+  background: #fff8f8;
+}
+@media(max-width:600px) {
+  .page-content:has(.settings-section-title) .generic-panel:has(.settings-section-title) {
+    padding: 19px 16px;
+    border-radius: 13px;
+  }
+  .page-content:has(.settings-section-title) .settings-section-title {
+    gap: 11px;
+  }
+  .page-content:has(.settings-section-title) .settings-section-title .round-icon {
+    width: 39px;
+    height: 39px;
+    flex-basis: 39px;
+  }
+}
