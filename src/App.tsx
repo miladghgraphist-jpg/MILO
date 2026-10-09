@@ -109,7 +109,7 @@ export default function App() {
 
   const completed = tasks.filter(t => t.done).length
   const greeting = useMemo(() => {
-    const hour = new Date().getHours()
+    const hour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Asia/Tehran' }).format(new Date()))
     return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
   }, [])
 
