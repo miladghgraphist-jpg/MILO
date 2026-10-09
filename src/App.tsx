@@ -30,7 +30,7 @@ function normalizeTasks(tasks: Task[]): Task[] {
   return tasks.map(task => ({ ...task, scope: task.scope ?? 'today', date: task.date ?? today }))
 }
 const STORAGE_KEY = 'personal-os:v1'
-type SavedState = { tasks: Task[]; mood: string; energy: number; stress: number; reflection: string; finance: { income: string; essentials: string; commitments: string } }
+type SavedState = { tasks: Task[]; mood: string; energy: number; stress: number; reflection: string; goal: string; financeNote: string; reflections: Record<string, string>; finance: { income: string; essentials: string; commitments: string } }
 function loadSavedState(): Partial<SavedState> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -47,7 +47,7 @@ export default function App() {
   const [mood, setMood] = useState(() => loadSavedState().mood ?? 'Okay')
   const [energy, setEnergy] = useState(() => loadSavedState().energy ?? 3)
   const [stress, setStress] = useState(() => loadSavedState().stress ?? 3)
-  const [reflection, setReflection] = useState(() => loadSavedState().reflection ?? '')
+  const [reflection, setReflection] = useState(() => loadSavedState().reflection ?? '')\n  const [goal, setGoal] = useState(() => loadSavedState().goal ?? '')\n  const [financeNote, setFinanceNote] = useState(() => loadSavedState().financeNote ?? '')\n  const [reflections, setReflections] = useState<Record<string, string>>(() => loadSavedState().reflections ?? {})
   const [breathing, setBreathing] = useState(false)
   const [notice, setNotice] = useState('')
   const [finance, setFinance] = useState(() => loadSavedState().finance ?? { income: '0', essentials: '0', commitments: '0' })
@@ -58,9 +58,9 @@ export default function App() {
   const [cloudReady, setCloudReady] = useState(false)
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, mood, energy, stress, reflection, finance } satisfies SavedState)) }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, mood, energy, stress, reflection, goal, financeNote, reflections, finance } satisfies SavedState)) }
     catch { /* Storage may be unavailable in private browsing; the app remains usable for this session. */ }
-  }, [tasks, mood, energy, stress, reflection, finance])
+  }, [tasks, mood, energy, stress, reflection, goal, financeNote, reflections, finance])
 
   useEffect(() => {
     if (!supabase) return
@@ -85,7 +85,7 @@ export default function App() {
         if (saved.mood) setMood(saved.mood)
         if (saved.energy !== undefined) setEnergy(saved.energy)
         if (saved.stress !== undefined) setStress(saved.stress)
-        if (saved.reflection !== undefined) setReflection(saved.reflection)
+        if (saved.reflection !== undefined) setReflection(saved.reflection)\n        if (saved.goal !== undefined) setGoal(saved.goal)\n        if (saved.financeNote !== undefined) setFinanceNote(saved.financeNote)\n        if (saved.reflections) setReflections(saved.reflections)
         if (saved.finance) setFinance(saved.finance)
       }
       setCloudReady(true)
@@ -97,12 +97,12 @@ export default function App() {
     const client = supabase
     if (!client || !user || !cloudReady) return
     const timer = window.setTimeout(async () => {
-      const payload = { tasks, mood, energy, stress, reflection, finance }
+      const payload = { tasks, mood, energy, stress, reflection, goal, financeNote, reflections, finance }
       const { error } = await client.from('user_workspace').upsert({ user_id: user.id, data: payload }, { onConflict: 'user_id' })
       setCloudMessage(error ? 'Cloud sync issue. Your data is still saved on this device.' : 'Synced securely to your private account.')
     }, 650)
     return () => window.clearTimeout(timer)
-  }, [user?.id, cloudReady, tasks, mood, energy, stress, reflection, finance])
+  }, [user?.id, cloudReady, tasks, mood, energy, stress, reflection, goal, financeNote, reflections, finance])
 
   async function sendSignInLink() {
     if (!supabase) return
@@ -161,10 +161,10 @@ export default function App() {
           <div className="bottom-grid"><button className="mini-card" onClick={() => selectSection('Goals')}><div className="mini-icon lilac"><Target size={18}/></div><div><b>Goals & intentions</b><span>Small steps add up</span></div><ArrowUpRight size={16}/></button><button className="mini-card" onClick={() => selectSection('Breathe & Focus')}><div className="mini-icon mint"><Wind size={18}/></div><div><b>Breathe & focus</b><span>Pause for a moment</span></div><ArrowUpRight size={16}/></button><button className="mini-card" onClick={() => selectSection('Finance')}><div className="mini-icon peach"><CreditCard size={18}/></div><div><b>Money overview</b><span>Awareness, not pressure</span></div><ArrowUpRight size={16}/></button></div>
         </>}
         {section === 'Planner' && <><PageTitle eyebrow="MAKE ROOM FOR WHAT MATTERS" title="Your planner" sub="Plan with intention, leave room for life."/><section className="panel generic-panel"><div className="panel-heading"><div><h3>Task list</h3><p>{tasks.filter(t => (t.scope ?? 'today') === 'planner').length} planned items · {tasks.filter(t => (t.scope ?? 'today') === 'planner' && t.done).length} completed</p></div><button className="add-btn" onClick={() => setAdding(!adding)}><Plus size={16}/> Add task</button></div>{adding && <form className="add-task" onSubmit={e => {e.preventDefault();addTask()}}><input value={newTask} onChange={e => setNewTask(e.target.value)} placeholder="Write a task…" autoFocus/><button type="submit"><Check size={17}/></button></form>}{tasks.filter(t => (t.scope ?? 'today') === 'planner').map(t => <div className={`task-row ${t.done ? 'task-done' : ''}`} key={t.id}><button className={`task-check ${t.done?'checked':''}`} onClick={() => setTasks(old=>old.map(x=>x.id===t.id?{...x,done:!x.done}:x))}>{t.done&&<Check size={13}/>}</button><div className="task-main"><b>{t.title}</b><span>{t.category}</span></div><div className="task-time"><Clock3 size={13}/>{t.time}</div><button className="row-more" aria-label="Remove task" onClick={() => setTasks(old => old.filter(x => x.id !== t.id))}><X size={14}/></button></div>)}{tasks.filter(t => (t.scope ?? 'today') === 'planner').length === 0 && <div className="empty-state">Your planner is clear. Add a task you want to plan ahead.</div>}</section></>}
-        {section === 'Goals' && <><PageTitle eyebrow="A DIRECTION, NOT A DEADLINE" title="Goals & intentions" sub="Meaningful progress, without the pressure."/><div className="three-cards"><InfoCard icon={<Target/>} title="This season" text="What would make the next few months feel meaningful?" tone="lilac"/><InfoCard icon={<Heart/>} title="For my wellbeing" text="A small habit that supports your body and mind." tone="peach"/><InfoCard icon={<Sparkles/>} title="One next step" text="Turn an intention into something you can do today." tone="mint"/></div><section className="panel generic-panel"><h3>My intention</h3><textarea value={reflection} onChange={e=>setReflection(e.target.value)} placeholder="What matters to me right now?"/><button className="primary-button" onClick={()=>notify('Intention saved on this device')}>Save intention</button></section></>}
+        {section === 'Goals' && <><PageTitle eyebrow="A DIRECTION, NOT A DEADLINE" title="Goals & intentions" sub="Meaningful progress, without the pressure."/><div className="three-cards"><InfoCard icon={<Target/>} title="This season" text="What would make the next few months feel meaningful?" tone="lilac"/><InfoCard icon={<Heart/>} title="For my wellbeing" text="A small habit that supports your body and mind." tone="peach"/><InfoCard icon={<Sparkles/>} title="One next step" text="Turn an intention into something you can do today." tone="mint"/></div><section className="panel generic-panel"><h3>My intention</h3><textarea value={goal} onChange={e=>setGoal(e.target.value)} placeholder="What matters to me right now?"/><button className="primary-button" onClick={()=>notify('Intention saved on this device')}>Save intention</button></section></>}
         {section === 'Wellbeing' && <><PageTitle eyebrow="CARE WITHOUT KEEPING SCORE" title="Wellbeing" sub="A gentle check-in, not another thing to perfect."/><div className="wellbeing-grid"><section className="panel generic-panel"><div className="round-icon peach"><Heart/></div><h3>How is your energy?</h3><p className="muted">Choose what feels closest today.</p><input className="range" type="range" min="1" max="10" value={energy} onChange={e=>setEnergy(+e.target.value)}/><div className="range-labels"><span>Running low</span><b>{energy}/10</b><span>Plenty of energy</span></div></section><section className="panel generic-panel"><div className="round-icon mint"><Moon/></div><h3>What would support you?</h3><p className="muted">You can choose just one.</p><div className="support-list">{['A proper meal','A short walk','A little rest','Talk to someone','A calmer evening'].map(s=><button key={s} onClick={()=>notify(`Gentle reminder: ${s.toLowerCase()}`)}><CheckCircle2 size={16}/>{s}<ArrowRight size={14}/></button>)}</div></section></div></>}
-        {section === 'Finance' && <><PageTitle eyebrow="CLARITY, NOT JUDGEMENT" title="Money overview" sub="A simple snapshot. Your numbers stay yours."/><div className="finance-note"><ShieldCheck size={17}/> Sample values start at zero. Nothing is connected to a bank.</div><div className="finance-grid">{([['Monthly income','income',ArrowUpRight],['Essential costs','essentials',ArrowDownRight],['Debt & commitments','commitments',CreditCard]] as const).map(([label,key,Icon])=><section className="panel finance-card" key={key}><div className="finance-card-top"><span>{label}</span><Icon size={17}/></div><label><span>Amount (your currency)</span><input value={finance[key]} inputMode="decimal" onChange={e=>setFinance(old=>({...old,[key]:e.target.value}))}/></label><small>Saved on this device</small></section>)}</div><section className="panel generic-panel"><h3>One money question</h3><p className="muted">What is the most useful financial decision you can make this week?</p><textarea value={reflection} onChange={e=>setReflection(e.target.value)} placeholder="Write a note to yourself…"/></section></>}
-        {section === 'Reviews' && <><PageTitle eyebrow="NOTICE, LEARN, RESET" title="Daily reflection" sub="A few honest lines are more than enough."/><section className="panel generic-panel"><h3>Look back with kindness</h3><p className="muted">What went well, even in a small way?</p><textarea value={reflection} onChange={e=>setReflection(e.target.value)} placeholder="Today, I’m glad that…"/><div className="reflection-prompts"><button onClick={()=>setReflection(v=>v+'
+        {section === 'Finance' && <><PageTitle eyebrow="CLARITY, NOT JUDGEMENT" title="Money overview" sub="A simple snapshot. Your numbers stay yours."/><div className="finance-note"><ShieldCheck size={17}/> Sample values start at zero. Nothing is connected to a bank.</div><div className="finance-grid">{([['Monthly income','income',ArrowUpRight],['Essential costs','essentials',ArrowDownRight],['Debt & commitments','commitments',CreditCard]] as const).map(([label,key,Icon])=><section className="panel finance-card" key={key}><div className="finance-card-top"><span>{label}</span><Icon size={17}/></div><label><span>Amount (your currency)</span><input value={finance[key]} inputMode="decimal" onChange={e=>setFinance(old=>({...old,[key]:e.target.value}))}/></label><small>Saved on this device</small></section>)}</div><section className="panel generic-panel"><h3>One money question</h3><p className="muted">What is the most useful financial decision you can make this week?</p><textarea value={financeNote} onChange={e=>setFinanceNote(e.target.value)} placeholder="Write a note to yourself…"/></section></>}
+        {section === 'Reviews' && <><PageTitle eyebrow="NOTICE, LEARN, RESET" title="Daily reflection" sub="A few honest lines are more than enough."/><section className="panel generic-panel"><h3>Look back with kindness</h3><p className="muted">What went well, even in a small way?</p><textarea value={reflections[todayKey] ?? ''} onChange={e=>setReflections(old=>({...old,[todayKey]:e.target.value}))} placeholder="Today, I’m glad that…"/><div className="reflection-prompts"><button onClick={()=>setReflection(v=>v+'
 One thing I handled well: ')}>One thing I handled well</button><button onClick={()=>setReflection(v=>v+'
 Something I can let go of: ')}>Something to let go of</button><button onClick={()=>setReflection(v=>v+'
 Tomorrow, I’ll start with: ')}>A gentle start tomorrow</button></div><button className="primary-button" onClick={()=>notify('Reflection saved on this device')}>Save reflection</button></section></>}
