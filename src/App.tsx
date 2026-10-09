@@ -180,31 +180,49 @@ export default function App() {
   }, [user?.id, cloudReady, tasks, events, mood, energy, stress, reflection, goal, financeNote, reflections, history, finance])
 
   async function handleAuthSubmit() {
-    if (!supabase) return
-    const cleanEmail = email.trim()
-    if (!cleanEmail) { setCloudMessage('Enter your email address first.'); return }
-    if (authMode === 'reset') {
-      const redirectUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
-      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: redirectUrl })
-      setCloudMessage(error ? `Could not send password reset email: ${error.message}` : 'Password reset email sent. Open it on this computer, follow the link, then choose a new password here.')
-      return
+    if (!supabase || profileSaving) return
+    const cleanEmail = email.trim().toLowerCase()
+    if (authMode !== 'update' && !cleanEmail) { setCloudMessage('Enter your email address first.'); return }
+    if (authMode !== 'reset' && password.length < 8) { setCloudMessage('Use a password with at least 8 characters.'); return }
+    setProfileSaving(true)
+    setCloudMessage('')
+    try {
+      if (authMode === 'reset') {
+        const redirectUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+        const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: redirectUrl })
+        if (error) {
+          const message = error.message.toLowerCase()
+          setCloudMessage(message.includes('rate limit') ? 'Email sending is temporarily limited by the authentication service. Please wait before requesting another link; repeated attempts will not help. No SMTP setup is required just to wait for this limit to clear.' : `Could not send password reset email: ${error.message}`)
+        } else setCloudMessage('Password reset email requested. Open the link on this device, then choose a new password.')
+        return
+      }
+      if (authMode === 'update') {
+        const { error } = await supabase.auth.updateUser({ password })
+        if (error) { setCloudMessage(`Could not update password: ${error.message}`); return }
+        setCloudMessage('Password updated successfully. You can now sign in with it.')
+        setAuthMode('signin')
+        setPassword('')
+        return
+      }
+      if (authMode === 'signup') {
+        const redirectUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+        const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password, options: { emailRedirectTo: redirectUrl } })
+        if (error) {
+          const message = error.message.toLowerCase()
+          setCloudMessage(message.includes('rate limit') ? 'Email sending is temporarily limited. Wait before trying again; creating or deleting accounts does not clear this limit.' : message.includes('already registered') || message.includes('already exists') ? 'This email may already have an account. Try Sign in or Forgot password instead of creating another account.' : `Could not create account: ${error.message}`)
+        } else setCloudMessage(data.session ? 'Account created and signed in.' : 'Account request created. Check your inbox for confirmation before signing in.')
+        return
+      }
+      const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password })
+      if (error) {
+        const message = error.message.toLowerCase()
+        setCloudMessage(message.includes('invalid login credentials') ? 'Email or password is incorrect. If you originally used an email sign-in link, use Forgot password to set a password.' : `Could not sign in: ${error.message}`)
+      } else setCloudMessage('Signed in successfully. Loading your private workspace…')
+    } catch (error) {
+      setCloudMessage(error instanceof Error ? `Request failed: ${error.message}` : 'The request failed. Please try again.')
+    } finally {
+      setProfileSaving(false)
     }
-    if (authMode === 'update') {
-      if (password.length < 8) { setCloudMessage('Use a password with at least 8 characters.'); return }
-      const { error } = await supabase.auth.updateUser({ password })
-      setCloudMessage(error ? `Could not update password: ${error.message}` : 'Password updated. Your account is ready to use.')
-      if (!error) { setAuthMode('signin'); setPassword('') }
-      return
-    }
-    if (password.length < 8) { setCloudMessage('Use a password with at least 8 characters.'); return }
-    if (authMode === 'signup') {
-      const redirectUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
-      const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password, options: { emailRedirectTo: redirectUrl } })
-      setCloudMessage(error ? (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already exists') ? 'This email already has an account. Choose Sign in, or use Forgot password to create/reset its password.' : `Could not create account: ${error.message}`) : data.session ? 'Account created and signed in.' : 'Account created. Check your email to confirm it, then return here to sign in.')
-      return
-    }
-    const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password })
-    setCloudMessage(error ? `Could not sign in: ${error.message}` : 'Signed in successfully. Loading your private workspace…')
   }
 
   const todayKey = tehranDateKey(clock)
@@ -348,7 +366,7 @@ export default function App() {
           {!supabase ? <p className="muted">Cloud sync needs the app’s Supabase environment settings before it can connect.</p> : user && authMode !== 'update' ? <div className="cloud-actions"><p className="muted">Your workspace is protected by account-level database policies.</p><button className="soft-button" onClick={async () => { await supabase?.auth.signOut(); setUser(null); setAuthMode('signin'); setPassword(''); setCloudMessage('Signed out. Local data remains on this device.') }}>Sign out</button></div> : <form className="add-task cloud-login" onSubmit={e => { e.preventDefault(); void handleAuthSubmit() }}>
             {authMode !== 'update' && <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" autoComplete="email" required/>}
             {authMode !== 'reset' && <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={authMode === 'update' ? 'New password (at least 8 characters)' : 'Password (at least 8 characters)'} autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} minLength={8} required/>}
-            <button type="submit">{authMode === 'signup' ? 'Create account' : authMode === 'reset' ? 'Send reset link' : authMode === 'update' ? 'Save new password' : 'Sign in'}</button>
+            <button type="submit" disabled={profileSaving}>{profileSaving ? 'Please wait…' : authMode === 'signup' ? 'Create account' : authMode === 'reset' ? 'Send reset link' : authMode === 'update' ? 'Save new password' : 'Sign in'}</button>
           </form>}
           {!user && authMode === 'signin' && <div className="auth-links"><button onClick={() => { setAuthMode('reset'); setCloudMessage('') }}>Forgot password?</button><button onClick={() => { setAuthMode('signup'); setCloudMessage('') }}>Create account</button></div>}
           {!user && authMode !== 'signin' && authMode !== 'update' && <div className="auth-links"><button onClick={() => { setAuthMode('signin'); setCloudMessage(''); setPassword('') }}>Back to sign in</button></div>}
@@ -376,7 +394,7 @@ export default function App() {
           {user && supabase && <>
             <section className="panel generic-panel"><div className="settings-section-title"><div className="round-icon lilac"><UserRound size={19}/></div><div><h3>Profile</h3><p className="muted">Your name and profile picture.</p></div></div>
               <div className="profile-editor"><div className="profile-photo-large">{profileAvatar ? <img src={profileAvatar} alt="Profile"/> : <span>{(profileName || user.email || 'M').slice(0,1).toUpperCase()}</span>}</div>
-              <label className="secondary-button photo-upload"><Camera size={15}/> Choose photo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={async e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value='';if(!file)return;if(file.size>8*1024*1024){notify('Choose a photo smaller than 8 MB.');return}try{const data=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('Could not read photo.'));reader.onload=()=>resolve(String(reader.result));reader.readAsDataURL(file)});const img=await new Promise<HTMLImageElement>((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Could not open photo.'));image.src=data});const canvas=document.createElement('canvas');const scale=Math.min(1,256/Math.max(img.width,img.height));canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Image processing unavailable.');ctx.drawImage(img,0,0,canvas.width,canvas.height);const compressed=canvas.toDataURL('image/jpeg',0.7);if(compressed.length>150000){notify('Photo is too large after processing. Choose another.');return}setProfileAvatar(compressed);notify('Photo selected. Save profile to apply it.')}catch(err){notify(err instanceof Error?err.message:'Photo could not be processed.')}}}/></label>{profileAvatar && <button type="button" className="text-button remove-photo" onClick={()=>setProfileAvatar('')}>Remove photo</button>}</div>
+              <label className="secondary-button photo-upload"><Camera size={15}/> Choose photo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={async e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value='';if(!file)return;if(file.size>8*1024*1024){notify('Choose a photo smaller than 8 MB.');return}try{const data=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('Could not read photo.'));reader.onload=()=>resolve(String(reader.result));reader.readAsDataURL(file)});const img=await new Promise<HTMLImageElement>((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Could not open photo.'));image.src=data});const canvas=document.createElement('canvas');const scale=Math.min(1,256/Math.max(img.width,img.height));canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Image processing unavailable.');ctx.drawImage(img,0,0,canvas.width,canvas.height);const compressed=canvas.toDataURL('image/jpeg',0.7);if(compressed.length>45000){notify('This photo is still too large for a profile image. Choose a simpler or smaller image.');return}setProfileAvatar(compressed);notify('Photo selected. Save profile to apply it.')}catch(err){notify(err instanceof Error?err.message:'Photo could not be processed.')}}}/></label>{profileAvatar && <button type="button" className="text-button remove-photo" onClick={()=>setProfileAvatar('')}>Remove photo</button>}</div>
               <form className="settings-form" onSubmit={async e=>{e.preventDefault();if(!supabase)return;setProfileSaving(true);const {error}=await supabase.auth.updateUser({data:{full_name:profileName.trim(),avatar_data:profileAvatar}});setProfileSaving(false);if(error){notify('Profile update failed: '+error.message);return}const {data}=await supabase.auth.getUser();if(data.user)setUser(data.user);notify('Profile saved successfully.')}}><label>Display name<input value={profileName} onChange={e=>setProfileName(e.target.value)} maxLength={80} placeholder="Your name"/></label><button className="primary-button" disabled={profileSaving}>{profileSaving?'Saving…':'Save profile'}</button></form>
             </section>
             <section className="panel generic-panel"><div className="settings-section-title"><div className="round-icon mint"><Mail size={18}/></div><div><h3>Email address</h3><p className="muted">Changing email may require confirmation in your inbox.</p></div></div>
