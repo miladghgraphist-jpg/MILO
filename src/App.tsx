@@ -9,6 +9,7 @@ import {
 
 type Section = 'Today' | 'Planner' | 'Goals' | 'Wellbeing' | 'Finance' | 'Reviews' | 'Anxiety Tracker' | 'Breathe & Focus'
 type Task = { id: number; title: string; time: string; category: string; done: boolean; scope?: 'today' | 'planner'; date?: string }
+type CalendarEvent = { id: number; title: string; date: string; time: string; reminderMinutes: number; notifiedKey?: string }
 const nav: { name: Section; icon: typeof LayoutDashboard }[] = [
   { name: 'Today', icon: LayoutDashboard }, { name: 'Planner', icon: ListTodo },
   { name: 'Goals', icon: Target }, { name: 'Wellbeing', icon: Heart },
@@ -33,7 +34,7 @@ function normalizeTasks(tasks: Task[]): Task[] {
   return tasks.map(task => ({ ...task, scope: task.scope ?? 'today', date: task.date ?? today }))
 }
 const STORAGE_KEY = 'personal-os:v1'
-type SavedState = { tasks: Task[]; mood: string; energy: number; stress: number; reflection: string; goal: string; financeNote: string; reflections: Record<string, string>; finance: { income: string; essentials: string; commitments: string } }
+type SavedState = { tasks: Task[]; events?: CalendarEvent[]; mood: string; energy: number; stress: number; reflection: string; goal: string; financeNote: string; reflections: Record<string, string>; finance: { income: string; essentials: string; commitments: string } }
 function loadSavedState(): Partial<SavedState> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -49,6 +50,12 @@ export default function App() {
     return () => window.clearInterval(timer)
   }, [])
   const [tasks, setTasks] = useState<Task[]>(() => normalizeTasks(loadSavedState().tasks ?? initialTasks))
+  const [events, setEvents] = useState<CalendarEvent[]>(() => loadSavedState().events ?? [])
+  const [eventTitle, setEventTitle] = useState('')
+  const [eventDate, setEventDate] = useState(() => tehranDateKey())
+  const [eventTime, setEventTime] = useState('09:00')
+  const [eventReminder, setEventReminder] = useState(10)
+  const [notificationsAllowed, setNotificationsAllowed] = useState(() => typeof Notification !== 'undefined' && Notification.permission === 'granted')
   const [newTask, setNewTask] = useState('')
   const [planDate, setPlanDate] = useState(() => tehranDateKey())
   const [adding, setAdding] = useState(false)
@@ -72,9 +79,9 @@ export default function App() {
   const [cloudReady, setCloudReady] = useState(false)
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, mood, energy, stress, reflection, goal, financeNote, reflections, finance } satisfies SavedState)) }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, events, mood, energy, stress, reflection, goal, financeNote, reflections, finance } satisfies SavedState)) }
     catch { /* Storage may be unavailable in private browsing; the app remains usable for this session. */ }
-  }, [tasks, mood, energy, stress, reflection, goal, financeNote, reflections, finance])
+  }, [tasks, events, mood, energy, stress, reflection, goal, financeNote, reflections, finance])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -108,6 +115,7 @@ export default function App() {
       else if (data?.data) {
         const saved = data.data as Partial<SavedState>
         if (saved.tasks) setTasks(normalizeTasks(saved.tasks))
+        if (saved.events) setEvents(saved.events)
         if (saved.mood) setMood(saved.mood)
         if (saved.energy !== undefined) setEnergy(saved.energy)
         if (saved.stress !== undefined) setStress(saved.stress)
@@ -126,12 +134,12 @@ export default function App() {
     const client = supabase
     if (!client || !user || !cloudReady) return
     const timer = window.setTimeout(async () => {
-      const payload = { tasks, mood, energy, stress, reflection, goal, financeNote, reflections, finance }
+      const payload = { tasks, events, mood, energy, stress, reflection, goal, financeNote, reflections, finance }
       const { error } = await client.from('user_workspace').upsert({ user_id: user.id, data: payload }, { onConflict: 'user_id' })
       setCloudMessage(error ? 'Cloud sync issue. Your data is still saved on this device.' : 'Synced securely to your private account.')
     }, 650)
     return () => window.clearTimeout(timer)
-  }, [user?.id, cloudReady, tasks, mood, energy, stress, reflection, goal, financeNote, reflections, finance])
+  }, [user?.id, cloudReady, tasks, events, mood, energy, stress, reflection, goal, financeNote, reflections, finance])
 
   async function sendSignInLink() {
     if (!supabase) return
@@ -160,6 +168,38 @@ export default function App() {
     setTasks(old => [...old, { id: Date.now(), title: newTask.trim(), time: 'Anytime', category: 'Personal', done: false, scope: section === 'Planner' ? 'planner' : 'today', date: section === 'Planner' ? planDate : todayKey }])
     setNewTask(''); setAdding(false)
   }
+  async function enableNotifications() {
+    if (typeof Notification === 'undefined') { notify('System notifications are not supported by this browser.'); return }
+    const permission = await Notification.requestPermission()
+    setNotificationsAllowed(permission === 'granted')
+    notify(permission === 'granted' ? 'System notifications enabled on this device.' : 'Notifications were not enabled. You can change browser permissions in site settings.')
+  }
+  function addCalendarEvent() {
+    if (!eventTitle.trim()) { notify('Add a title for this event first.'); return }
+    setEvents(old => [...old, { id: Date.now(), title: eventTitle.trim(), date: eventDate, time: eventTime, reminderMinutes: eventReminder }].sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)))
+    setEventTitle('')
+    notify('Calendar event saved with a reminder.')
+  }
+  useEffect(() => {
+    const checkReminders = () => {
+      const now = new Date()
+      setEvents(old => old.map(event => {
+        const dueAt = new Date(`${event.date}T${event.time}:00`)
+        const remindAt = new Date(dueAt.getTime() - event.reminderMinutes * 60_000)
+        const reminderKey = `${event.date}T${event.time}`
+        if (now >= remindAt && now < new Date(dueAt.getTime() + 60_000) && event.notifiedKey !== reminderKey) {
+          const body = `Upcoming at ${event.time} · ${event.date}`
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') new Notification(event.title, { body, tag: `personal-os-${event.id}` })
+          else setNotice(`Reminder: ${event.title} · ${event.time}`)
+          return { ...event, notifiedKey: reminderKey }
+        }
+        return event
+      }))
+    }
+    checkReminders()
+    const timer = window.setInterval(checkReminders, 15_000)
+    return () => window.clearInterval(timer)
+  }, [])
   function selectSection(name: Section) {
     setSection(name); setMobileMenu(false); setNotice('')
   }
@@ -196,7 +236,7 @@ export default function App() {
             <div className="right-stack"><section className="panel mood-panel"><div className="panel-heading"><div><h3>How are you feeling?</h3><p>Just a moment to check in.</p></div><div className="round-icon peach"><Heart size={18}/></div></div><div className="mood-options">{[['Low','☁'],['Okay','◒'],['Good','☀'],['Great','✳']].map(([label,emoji]) => <button key={label} onClick={() => setMood(label)} className={`mood-option ${mood === label ? 'mood-selected' : ''}`}><span>{emoji}</span><small>{label}</small></button>)}</div><div className="mood-saved"><span className="mood-dot"/>{mood === 'Okay' ? 'It’s okay to be where you are.' : `Noted: feeling ${mood.toLowerCase()} today.`}</div></section><section className="quote-card"><div className="quote-mark">“</div><p>You are allowed to move at the speed of your own healing.</p><span>A GENTLE REMINDER</span><div className="quote-flower">✳</div></section></div></div>
           <div className="bottom-grid"><button className="mini-card" onClick={() => selectSection('Goals')}><div className="mini-icon lilac"><Target size={18}/></div><div><b>Goals & intentions</b><span>Small steps add up</span></div><ArrowUpRight size={16}/></button><button className="mini-card" onClick={() => selectSection('Breathe & Focus')}><div className="mini-icon mint"><Wind size={18}/></div><div><b>Breathe & focus</b><span>Pause for a moment</span></div><ArrowUpRight size={16}/></button><button className="mini-card" onClick={() => selectSection('Finance')}><div className="mini-icon peach"><CreditCard size={18}/></div><div><b>Money overview</b><span>Awareness, not pressure</span></div><ArrowUpRight size={16}/></button></div>
         </>}
-        {section === 'Planner' && <><PageTitle eyebrow="MAKE ROOM FOR WHAT MATTERS" title="Your planner" sub="Plan with intention, leave room for life."/><section className="panel generic-panel"><div className="panel-heading"><div><h3>Planned tasks</h3><p>{tasks.filter(t => (t.scope ?? 'today') === 'planner').length} planned items · {tasks.filter(t => (t.scope ?? 'today') === 'planner' && t.done).length} completed</p><p className="scope-hint">These tasks stay separate from Today’s priorities.</p></div><button className="add-btn" onClick={() => setAdding(!adding)}><Plus size={16}/> Add task</button></div>{adding && <form className="add-task" onSubmit={e => {e.preventDefault();addTask()}}><input value={newTask} onChange={e => setNewTask(e.target.value)} placeholder="Write a task…" autoFocus/><input aria-label="Planned date" type="date" value={planDate} onChange={e => setPlanDate(e.target.value)} /><button type="submit"><Check size={17}/></button></form>}{tasks.filter(t => (t.scope ?? 'today') === 'planner').map(t => <div className={`task-row ${t.done ? 'task-done' : ''}`} key={t.id}><button className={`task-check ${t.done?'checked':''}`} onClick={() => setTasks(old=>old.map(x=>x.id===t.id?{...x,done:!x.done}:x))}>{t.done&&<Check size={13}/>}</button><div className="task-main"><b>{t.title}</b><span>{t.category} · {t.date ?? 'No date set'}</span></div><div className="task-time"><Clock3 size={13}/>{t.time}</div><button className="row-more" aria-label="Remove task" onClick={() => setTasks(old => old.filter(x => x.id !== t.id))}><X size={14}/></button></div>)}{tasks.filter(t => (t.scope ?? 'today') === 'planner').length === 0 && <div className="empty-state">Your planner is clear. Add a task you want to plan ahead.</div>}</section></>}
+        {section === 'Planner' && <><PageTitle eyebrow="MAKE ROOM FOR WHAT MATTERS" title="Your planner" sub="Plan with intention, leave room for life."/><section className="panel generic-panel"><div className="panel-heading"><div><h3>Calendar reminders</h3><p>Create an event with a date, time and notification lead time.</p></div><button className="soft-button" onClick={() => void enableNotifications()}><Bell size={15}/>{notificationsAllowed ? 'Notifications enabled' : 'Enable notifications'}</button></div><form className="event-form" onSubmit={e => {e.preventDefault();addCalendarEvent()}}><input value={eventTitle} onChange={e=>setEventTitle(e.target.value)} placeholder="Event title (e.g. doctor appointment)" aria-label="Event title" required/><div className="event-fields"><label>Date<input type="date" value={eventDate} onChange={e=>setEventDate(e.target.value)} required/></label><label>Time<input type="time" value={eventTime} onChange={e=>setEventTime(e.target.value)} required/></label><label>Remind me<select value={eventReminder} onChange={e=>setEventReminder(Number(e.target.value))}><option value={0}>At event time</option><option value={5}>5 minutes before</option><option value={10}>10 minutes before</option><option value={15}>15 minutes before</option><option value={30}>30 minutes before</option><option value={60}>1 hour before</option><option value={1440}>1 day before</option></select></label><button type="submit" className="primary-button"><Plus size={15}/> Save event</button></div></form><p className="scope-hint">Important: reminders run while Personal OS is open. System notifications require permission; this static version cannot reliably notify you when the app is fully closed.</p><div className="event-list">{events.filter(e=>`${e.date}T${e.time}` >= `${todayKey}T00:00`).map(event=><div className="event-row" key={event.id}><div className="event-date"><b>{new Date(`${event.date}T12:00:00`).toLocaleDateString('en',{month:'short',day:'numeric'})}</b><span>{event.time}</span></div><div className="event-info"><b>{event.title}</b><small>{event.reminderMinutes === 0 ? 'Reminder at event time' : event.reminderMinutes < 60 ? `${event.reminderMinutes} minutes before` : event.reminderMinutes === 1440 ? '1 day before' : `${event.reminderMinutes/60} hour${event.reminderMinutes === 60 ? '' : 's'} before`}</small></div><button className="row-more" aria-label="Delete event" onClick={()=>setEvents(old=>old.filter(e=>e.id!==event.id))}><X size={15}/></button></div>)}{events.filter(e=>`${e.date}T${e.time}` >= `${todayKey}T00:00`).length===0 && <div className="empty-state">No upcoming events yet. Add an appointment or anything you need to remember.</div>}</div></section><section className="panel generic-panel"><div className="panel-heading"><div><h3>Planned tasks</h3><p>{tasks.filter(t => (t.scope ?? 'today') === 'planner').length} planned items · {tasks.filter(t => (t.scope ?? 'today') === 'planner' && t.done).length} completed</p><p className="scope-hint">These tasks stay separate from Today’s priorities.</p></div><button className="add-btn" onClick={() => setAdding(!adding)}><Plus size={16}/> Add task</button></div>{adding && <form className="add-task" onSubmit={e => {e.preventDefault();addTask()}}><input value={newTask} onChange={e => setNewTask(e.target.value)} placeholder="Write a task…" autoFocus/><input aria-label="Planned date" type="date" value={planDate} onChange={e => setPlanDate(e.target.value)} /><button type="submit"><Check size={17}/></button></form>}{tasks.filter(t => (t.scope ?? 'today') === 'planner').map(t => <div className={`task-row ${t.done ? 'task-done' : ''}`} key={t.id}><button className={`task-check ${t.done?'checked':''}`} onClick={() => setTasks(old=>old.map(x=>x.id===t.id?{...x,done:!x.done}:x))}>{t.done&&<Check size={13}/>}</button><div className="task-main"><b>{t.title}</b><span>{t.category} · {t.date ?? 'No date set'}</span></div><div className="task-time"><Clock3 size={13}/>{t.time}</div><button className="row-more" aria-label="Remove task" onClick={() => setTasks(old => old.filter(x => x.id !== t.id))}><X size={14}/></button></div>)}{tasks.filter(t => (t.scope ?? 'today') === 'planner').length === 0 && <div className="empty-state">Your planner is clear. Add a task you want to plan ahead.</div>}</section></>}
         {section === 'Goals' && <><PageTitle eyebrow="A DIRECTION, NOT A DEADLINE" title="Goals & intentions" sub="Meaningful progress, without the pressure."/><div className="three-cards"><InfoCard icon={<Target/>} title="This season" text="What would make the next few months feel meaningful?" tone="lilac"/><InfoCard icon={<Heart/>} title="For my wellbeing" text="A small habit that supports your body and mind." tone="peach"/><InfoCard icon={<Sparkles/>} title="One next step" text="Turn an intention into something you can do today." tone="mint"/></div><section className="panel generic-panel"><h3>My intention</h3><textarea value={goal} onChange={e=>setGoal(e.target.value)} placeholder="What matters to me right now?"/><button className="primary-button" onClick={()=>notify('Intention saved on this device')}>Save intention</button></section></>}
         {section === 'Wellbeing' && <><PageTitle eyebrow="CARE WITHOUT KEEPING SCORE" title="Wellbeing" sub="A gentle check-in, not another thing to perfect."/><div className="wellbeing-grid"><section className="panel generic-panel"><div className="round-icon peach"><Heart/></div><h3>How is your energy?</h3><p className="muted">Choose what feels closest today.</p><input className="range" type="range" min="1" max="10" value={energy} onChange={e=>setEnergy(+e.target.value)}/><div className="range-labels"><span>Running low</span><b>{energy}/10</b><span>Plenty of energy</span></div></section><section className="panel generic-panel"><div className="round-icon mint"><Moon/></div><h3>What would support you?</h3><p className="muted">You can choose just one.</p><div className="support-list">{['A proper meal','A short walk','A little rest','Talk to someone','A calmer evening'].map(s=><button key={s} onClick={()=>notify(`Gentle reminder: ${s.toLowerCase()}`)}><CheckCircle2 size={16}/>{s}<ArrowRight size={14}/></button>)}</div></section></div></>}
         {section === 'Finance' && <><PageTitle eyebrow="CLARITY, NOT JUDGEMENT" title="Money overview" sub="A simple snapshot. Your numbers stay yours."/><div className="finance-note"><ShieldCheck size={17}/> Sample values start at zero. Nothing is connected to a bank.</div><div className="finance-grid">{([['Monthly income','income',ArrowUpRight],['Essential costs','essentials',ArrowDownRight],['Debt & commitments','commitments',CreditCard]] as const).map(([label,key,Icon])=><section className="panel finance-card" key={key}><div className="finance-card-top"><span>{label}</span><Icon size={17}/></div><label><span>Amount (your currency)</span><input value={finance[key]} inputMode="decimal" onChange={e=>setFinance(old=>({...old,[key]:e.target.value}))}/></label><small>Saved on this device</small></section>)}</div><section className="panel generic-panel"><h3>One money question</h3><p className="muted">What is the most useful financial decision you can make this week?</p><textarea value={financeNote} onChange={e=>setFinanceNote(e.target.value)} placeholder="Write a note to yourself…"/></section></>}
