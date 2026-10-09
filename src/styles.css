@@ -20,3 +20,6 @@
   .cloud-login { flex-direction: column; }
   .cloud-login button { width: 100%; }
 }
+
+/* Clear task-scope guidance */
+.scope-hint { margin-top: 5px !important; color: #8170c5 !important; font-size: 10px !important; }
