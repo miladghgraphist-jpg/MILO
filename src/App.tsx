@@ -172,6 +172,8 @@ export default function App() {
         if (saved.reflections) setReflections(saved.reflections)
         if (saved.history) setHistory(local => ({ ...local, ...saved.history }))
         if (saved.finance) setFinance(saved.finance)
+        if (saved.transactions) setTransactions(saved.transactions)
+        if (saved.goals) setGoals(saved.goals)
       }
       setCloudReady(true)
     })
@@ -187,7 +189,7 @@ export default function App() {
       setCloudMessage(error ? 'Cloud sync issue. Your data is still saved on this device.' : 'Synced securely to your private account.')
     }, 650)
     return () => window.clearTimeout(timer)
-  }, [user?.id, cloudReady, tasks, events, mood, energy, stress, reflection, goal, financeNote, reflections, history, finance, transactions])
+  }, [user?.id, cloudReady, tasks, events, mood, energy, stress, reflection, goal, financeNote, reflections, history, finance, transactions, goals])
 
   async function handleAuthSubmit() {
     if (!supabase || profileSaving) return
