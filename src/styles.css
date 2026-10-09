@@ -79,3 +79,22 @@
 @media (max-width: 560px) {
   .auth-links { align-items: flex-start; }
 }
+
+/* Account settings */
+.settings-section-title{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.settings-section-title h3{margin:0 0 4px}
+.settings-section-title .muted{margin:0}
+.settings-form{display:flex;flex-direction:column;gap:14px;margin-top:16px;max-width:560px}
+.settings-form label{display:flex;flex-direction:column;gap:7px;color:var(--text-secondary,#777);font-size:12px}
+.settings-form input{width:100%;min-width:0;border:1px solid var(--border,#e7e3ef);border-radius:10px;padding:11px 12px;background:var(--surface,#fff);color:var(--ink,#282536);font:inherit;font-size:13px}
+.settings-form input:focus{outline:2px solid #cfc4f0;outline-offset:1px}
+.settings-form input[readonly]{opacity:.7;cursor:not-allowed}
+.profile-editor{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.profile-photo-large{width:82px;height:82px;flex:0 0 82px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#eee9fb;color:#6f5db5;font-size:28px;font-weight:700}
+.profile-photo-large img{width:100%;height:100%;object-fit:cover}
+.photo-upload{position:relative;display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.photo-upload input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+.settings-signout{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.settings-signout h3{margin:0 0 6px}
+.settings-signout p{margin:0}
+@media(max-width:600px){.profile-editor{align-items:flex-start}.settings-signout{align-items:stretch;flex-direction:column}.settings-form .primary-button,.settings-form .secondary-button{width:100%}}
