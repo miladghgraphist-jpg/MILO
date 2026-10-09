@@ -89,7 +89,13 @@ export default function App() {
   const [breathing, setBreathing] = useState(false)
   const [notice, setNotice] = useState('')
   const [finance, setFinance] = useState(() => loadSavedState().finance ?? { income: '0', essentials: '0', commitments: '0' })
-  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const [user, setUser] = useState<{ id: string; email?: string; user_metadata?: Record<string, unknown> } | null>(null)
+  const [profileName, setProfileName] = useState('')
+  const [profileAvatar, setProfileAvatar] = useState('')
+  const [newEmail, setNewEmail] = useState('')
+  const [settingsPassword, setSettingsPassword] = useState('')
+  const [settingsPasswordConfirm, setSettingsPasswordConfirm] = useState('')
+  const [profileSaving, setProfileSaving] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'reset' | 'update'>('signin')
@@ -128,6 +134,13 @@ export default function App() {
     })
     return () => { alive = false; subscription.unsubscribe() }
   }, [])
+
+  useEffect(() => {
+    if (!user) { setProfileName(''); setProfileAvatar(''); setNewEmail(''); return }
+    setProfileName(typeof user.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : '')
+    setProfileAvatar(typeof user.user_metadata?.avatar_data === 'string' ? user.user_metadata.avatar_data : '')
+    setNewEmail(user.email ?? '')
+  }, [user?.id, user?.email, user?.user_metadata?.full_name, user?.user_metadata?.avatar_data])
 
   useEffect(() => {
     if (!supabase || !user) { setCloudReady(false); return }
