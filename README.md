@@ -4,8 +4,9 @@ A standalone personal planning and wellbeing app. This repository is independent
 
 ## Stack
 - React + TypeScript + Vite
-- Responsive, pastel-gradient interface
-- Supabase integration planned as a separate next step; no credentials are committed
+- Responsive pastel-gradient interface
+- Device-local persistence for tasks, mood, wellbeing sliders, reflections, and finance entries
+- Supabase cloud sync planned; no credentials are committed
 
 ## Run locally
 ```bash
@@ -13,5 +14,8 @@ npm install
 npm run dev
 ```
 
-## Current scope
-This is the clean Personal OS foundation and UI prototype. Local interactions are prototype-only; persistent storage, authentication, cloud sync, backup, and deployment are not configured yet. Sample finance values are illustrative and should be replaced.
+## Build validation
+GitHub Actions runs a production build on pushes and pull requests to `main`.
+
+## Data and privacy
+Until cloud sync is configured, app data is stored in this browser on this device. It does not sync between devices and can be cleared with browser site data. Finance values begin at zero and are illustrative until edited. Do not enter highly sensitive medical or financial details until account access, cloud security, and backups are configured.
