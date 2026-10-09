@@ -1,4 +1,4 @@
-const CACHE_NAME = 'personal-os-shell-v2';
+const CACHE_NAME = 'personal-os-shell-v3';
 const APP_BASE = '/personal-app/';
 const APP_SHELL = [APP_BASE, APP_BASE + 'index.html', APP_BASE + 'manifest.webmanifest', APP_BASE + 'icon.svg'];
 
