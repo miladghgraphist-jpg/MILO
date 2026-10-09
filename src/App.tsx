@@ -28,7 +28,6 @@ const tehranDateKey = (date = new Date()) => {
   const part = (type: string) => parts.find(item => item.type === type)?.value ?? ''
   return `${part('year')}-${part('month')}-${part('day')}`
 }
-const dateLabel = new Intl.DateTimeFormat('en', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'Asia/Tehran' }).format(new Date())
 function normalizeTasks(tasks: Task[]): Task[] {
   const today = tehranDateKey()
   return tasks.map(task => ({ ...task, scope: task.scope ?? 'today', date: task.date ?? today }))
@@ -44,6 +43,11 @@ function loadSavedState(): Partial<SavedState> {
 
 export default function App() {
   const [section, setSection] = useState<Section>('Today')
+  const [clock, setClock] = useState(() => new Date())
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(new Date()), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
   const [tasks, setTasks] = useState<Task[]>(() => normalizeTasks(loadSavedState().tasks ?? initialTasks))
   const [newTask, setNewTask] = useState('')
   const [adding, setAdding] = useState(false)
@@ -122,13 +126,14 @@ export default function App() {
     setCloudMessage(error ? error.message : 'Sign-in link sent. Open the email on this device to connect your account.')
   }
 
-  const todayKey = tehranDateKey()
+  const todayKey = tehranDateKey(clock)
+  const dateLabel = useMemo(() => new Intl.DateTimeFormat('en', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'Asia/Tehran' }).format(clock), [clock])
   const todayTasks = tasks.filter(t => (t.scope ?? 'today') === 'today' && (t.date ?? todayKey) === todayKey)
   const completed = todayTasks.filter(t => t.done).length
   const greeting = useMemo(() => {
-    const hour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Asia/Tehran' }).format(new Date()))
+    const hour = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Asia/Tehran' }).format(clock))
     return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
-  }, [])
+  }, [clock])
 
   function addTask() {
     if (!newTask.trim()) return
