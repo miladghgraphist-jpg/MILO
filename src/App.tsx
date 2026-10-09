@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookOpen,
@@ -169,37 +169,58 @@ export default function App() {
     setNewTask(''); setAdding(false)
   }
   async function enableNotifications() {
-    if (typeof Notification === 'undefined') { notify('System notifications are not supported by this browser.'); return }
-    const permission = await Notification.requestPermission()
-    setNotificationsAllowed(permission === 'granted')
-    notify(permission === 'granted' ? 'System notifications enabled on this device.' : 'Notifications were not enabled. You can change browser permissions in site settings.')
+    if (!('Notification' in window)) { notify('This browser does not support system notifications. Try opening the app in Chrome.'); return }
+    try {
+      const permission = Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission
+      setNotificationsAllowed(permission === 'granted')
+      if (permission !== 'granted') {
+        notify(permission === 'denied' ? 'Notifications are blocked for this site. Open browser site settings and allow notifications.' : 'Notification permission was not granted.')
+        return
+      }
+      const test = new Notification('Personal OS notifications are working', { body: 'You will receive reminders while this app is open.', tag: 'personal-os-notification-test' })
+      test.onclick = () => { window.focus(); test.close() }
+      notify('Test notification sent. If it did not appear, check this site’s notification permission and your device notification settings.')
+    } catch (error) {
+      notify(error instanceof Error ? `Could not send notification: ${error.message}` : 'Could not send notification. Check browser and device notification settings.')
+    }
   }
   function addCalendarEvent() {
     if (!eventTitle.trim()) { notify('Add a title for this event first.'); return }
-    setEvents(old => [...old, { id: Date.now(), title: eventTitle.trim(), date: eventDate, time: eventTime, reminderMinutes: eventReminder }].sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)))
+    const event: CalendarEvent = { id: Date.now(), title: eventTitle.trim(), date: eventDate, time: eventTime, reminderMinutes: eventReminder }
+    setEvents(old => [...old, event].sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)))
     setEventTitle('')
-    notify('Calendar event saved with a reminder.')
+    notify('Calendar event saved. Keep Personal OS open for its reminder.')
   }
+  const notifiedEvents = useRef<Set<string>>(new Set())
   useEffect(() => {
     const checkReminders = () => {
       const now = new Date()
-      setEvents(old => old.map(event => {
+      events.forEach(event => {
         const dueAt = new Date(`${event.date}T${event.time}:00`)
         const remindAt = new Date(dueAt.getTime() - event.reminderMinutes * 60_000)
-        const reminderKey = `${event.date}T${event.time}`
-        if (now >= remindAt && now < new Date(dueAt.getTime() + 60_000) && event.notifiedKey !== reminderKey) {
-          const body = `Upcoming at ${event.time} · ${event.date}`
-          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') new Notification(event.title, { body, tag: `personal-os-${event.id}` })
-          else setNotice(`Reminder: ${event.title} · ${event.time}`)
-          return { ...event, notifiedKey: reminderKey }
+        const reminderKey = `${event.id}-${event.date}T${event.time}`
+        const lateWindowEnd = new Date(dueAt.getTime() + 15 * 60_000)
+        if (now >= remindAt && now <= lateWindowEnd && event.notifiedKey !== `${event.date}T${event.time}` && !notifiedEvents.current.has(reminderKey)) {
+          notifiedEvents.current.add(reminderKey)
+          const body = `Scheduled for ${event.time} · ${event.date}`
+          try {
+            if ('Notification' in window && Notification.permission === 'granted') {
+              const notification = new Notification(event.title, { body, tag: `personal-os-${event.id}` })
+              notification.onclick = () => { window.focus(); notification.close() }
+            } else {
+              setNotice(`Reminder: ${event.title} · ${event.time}`)
+            }
+          } catch {
+            setNotice(`Reminder: ${event.title} · ${event.time}. Check browser notification permissions.`)
+          }
+          setEvents(current => current.map(item => item.id === event.id ? { ...item, notifiedKey: `${event.date}T${event.time}` } : item))
         }
-        return event
-      }))
+      })
     }
     checkReminders()
-    const timer = window.setInterval(checkReminders, 15_000)
+    const timer = window.setInterval(checkReminders, 5_000)
     return () => window.clearInterval(timer)
-  }, [])
+  }, [events])
   function selectSection(name: Section) {
     setSection(name); setMobileMenu(false); setNotice('')
   }
