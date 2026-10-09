@@ -1,21 +1,17 @@
-# MILO — Personal Operating Planner
+# Personal OS
 
-Independent personal planner built with React + Vite + Supabase.
+A standalone personal planning and wellbeing app. This repository is independent from Persuna App, Persuna OS, and the Persuna Studio website.
 
-## Architecture
-- GitHub: miladghgraphist-jpg/MILO
-- Supabase: independent MILO project
-- Vercel: deploy this repository as its own project
-- Auth + PostgreSQL + RLS + Realtime
+## Stack
+- React + TypeScript + Vite
+- Responsive, pastel-gradient interface
+- Supabase integration planned as a separate next step; no credentials are committed
 
-## Local setup
-1. Copy .env.example to .env.local
-2. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY
-3. npm install
-4. npm run dev
+## Run locally
+```bash
+npm install
+npm run dev
+```
 
-## Design direction
-Dark gray premium UI, restrained purple accent, RTL/Persian-first, responsive desktop/mobile.
-
-## Isolation
-This repository must never share deployment, environment variables, or database resources with Persuna-App.
+## Current scope
+This is the clean Personal OS foundation and UI prototype. Local interactions are prototype-only; persistent storage, authentication, cloud sync, backup, and deployment are not configured yet. Sample finance values are illustrative and should be replaced.
