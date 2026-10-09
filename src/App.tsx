@@ -91,6 +91,8 @@ export default function App() {
   const [finance, setFinance] = useState(() => loadSavedState().finance ?? { income: '0', essentials: '0', commitments: '0' })
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'reset' | 'update'>('signin')
   const [cloudPanel, setCloudPanel] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -118,8 +120,11 @@ export default function App() {
     if (!supabase) return
     let alive = true
     supabase.auth.getSession().then(({ data }) => { if (alive) setUser(data.session?.user ?? null) })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (alive) { setUser(session?.user ?? null); setCloudReady(false) }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!alive) return
+      setUser(session?.user ?? null)
+      setCloudReady(false)
+      if (event === 'PASSWORD_RECOVERY') { setAuthMode('update'); setCloudPanel(true); setCloudMessage('Choose a new password for your account.') }
     })
     return () => { alive = false; subscription.unsubscribe() }
   }, [])
@@ -161,12 +166,32 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [user?.id, cloudReady, tasks, events, mood, energy, stress, reflection, goal, financeNote, reflections, history, finance])
 
-  async function sendSignInLink() {
+  async function handleAuthSubmit() {
     if (!supabase) return
-    if (!email.trim()) { setCloudMessage('Enter your email address first.'); return }
-    const redirectUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: redirectUrl } })
-    setCloudMessage(error ? `Could not send sign-in link: ${error.message}` : 'Sign-in link sent. Open the same email inbox on this computer and click the latest link. You will be signed in automatically.')
+    const cleanEmail = email.trim()
+    if (!cleanEmail) { setCloudMessage('Enter your email address first.'); return }
+    if (authMode === 'reset') {
+      const redirectUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: redirectUrl })
+      setCloudMessage(error ? `Could not send password reset email: ${error.message}` : 'Password reset email sent. Open it on this computer, follow the link, then choose a new password here.')
+      return
+    }
+    if (authMode === 'update') {
+      if (password.length < 8) { setCloudMessage('Use a password with at least 8 characters.'); return }
+      const { error } = await supabase.auth.updateUser({ password })
+      setCloudMessage(error ? `Could not update password: ${error.message}` : 'Password updated. Your account is ready to use.')
+      if (!error) { setAuthMode('signin'); setPassword('') }
+      return
+    }
+    if (password.length < 8) { setCloudMessage('Use a password with at least 8 characters.'); return }
+    if (authMode === 'signup') {
+      const redirectUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+      const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password, options: { emailRedirectTo: redirectUrl } })
+      setCloudMessage(error ? `Could not create account: ${error.message}` : data.session ? 'Account created and signed in.' : 'Account created. Check your email to confirm it, then return here to sign in.')
+      return
+    }
+    const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password })
+    setCloudMessage(error ? `Could not sign in: ${error.message}` : 'Signed in successfully. Loading your private workspace…')
   }
 
   const todayKey = tehranDateKey(clock)
@@ -306,8 +331,14 @@ export default function App() {
         {searchOpen && <div className="search-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setSearchOpen(false) }}><section className="search-dialog" role="dialog" aria-modal="true" aria-label="Search your personal workspace"><div className="search-input-row"><Search size={18}/><input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search tasks, goals, notes…"/><button className="icon-btn" onClick={() => setSearchOpen(false)} aria-label="Close search"><X size={17}/></button></div>{!normalizedQuery ? <p className="search-helper">Search your tasks, saved intentions, finance notes and today’s reflection.</p> : searchResults.length ? <div className="search-results">{searchResults.map((result, index) => <button key={`${result.section}-${result.title}-${index}`} className="search-result" onClick={() => { selectSection(result.section); setSearchOpen(false); setSearchQuery('') }}><span><b>{result.title}</b><small>{result.detail}</small></span><ArrowRight size={15}/></button>)}</div> : <div className="search-empty">No matches found. Try another word.</div>}<div className="search-foot"><span>PERSONAL OS SEARCH</span><kbd>ESC</kbd><span>to close</span></div></section></div>}
         {notice && <div className="notice"><CheckCircle2 size={16}/>{notice}<button onClick={() => setNotice('')}><X size={14}/></button></div>}
         {cloudPanel && <section className="panel generic-panel cloud-panel">
-          <div className="panel-heading"><div><h3>{user ? 'Your account' : 'Sign in to your account'}</h3><p>{user ? `Connected as ${user.email ?? 'your account'}` : 'Use the same email address you registered with on your phone. No password is needed.'}</p></div><button className="icon-btn" onClick={() => setCloudPanel(false)} aria-label="Close cloud sync"><X size={16}/></button></div>
-          {!supabase ? <p className="muted">Cloud sync needs the app’s Supabase environment settings before it can connect.</p> : user ? <div className="cloud-actions"><p className="muted">Your workspace is protected by account-level database policies.</p><button className="soft-button" onClick={async () => { await supabase?.auth.signOut(); setUser(null); setCloudMessage('Signed out. Local data remains on this device.') }}>Sign out</button></div> : <form className="add-task cloud-login" onSubmit={e => { e.preventDefault(); void sendSignInLink() }}><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email used on your phone" autoComplete="email" required/><button type="submit">Email me a sign-in link</button></form>}
+          <div className="panel-heading"><div><h3>{user ? 'Your account' : authMode === 'signup' ? 'Create your account' : authMode === 'reset' ? 'Reset your password' : authMode === 'update' ? 'Choose a new password' : 'Sign in to your account'}</h3><p>{user ? `Connected as ${user.email ?? 'your account'}` : authMode === 'reset' ? 'We’ll email you a secure password reset link.' : authMode === 'update' ? 'Set a new password to use on this and other devices.' : 'Sign in with the email you used on your phone and your password.'}</p></div><button className="icon-btn" onClick={() => setCloudPanel(false)} aria-label="Close account panel"><X size={16}/></button></div>
+          {!supabase ? <p className="muted">Cloud sync needs the app’s Supabase environment settings before it can connect.</p> : user && authMode !== 'update' ? <div className="cloud-actions"><p className="muted">Your workspace is protected by account-level database policies.</p><button className="soft-button" onClick={async () => { await supabase?.auth.signOut(); setUser(null); setAuthMode('signin'); setPassword(''); setCloudMessage('Signed out. Local data remains on this device.') }}>Sign out</button></div> : <form className="add-task cloud-login" onSubmit={e => { e.preventDefault(); void handleAuthSubmit() }}>
+            {authMode !== 'update' && <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" autoComplete="email" required/>}
+            {authMode !== 'reset' && <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={authMode === 'update' ? 'New password (at least 8 characters)' : 'Password (at least 8 characters)'} autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} minLength={8} required/>}
+            <button type="submit">{authMode === 'signup' ? 'Create account' : authMode === 'reset' ? 'Send reset link' : authMode === 'update' ? 'Save new password' : 'Sign in'}</button>
+          </form>}
+          {!user && authMode === 'signin' && <div className="auth-links"><button onClick={() => { setAuthMode('reset'); setCloudMessage('') }}>Forgot password?</button><button onClick={() => { setAuthMode('signup'); setCloudMessage('') }}>Create account</button></div>}
+          {!user && authMode !== 'signin' && authMode !== 'update' && <div className="auth-links"><button onClick={() => { setAuthMode('signin'); setCloudMessage(''); setPassword('') }}>Back to sign in</button></div>}
           {cloudMessage && <p className="cloud-message">{cloudMessage}</p>}
         </section>}
 
