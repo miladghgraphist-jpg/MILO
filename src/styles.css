@@ -98,3 +98,6 @@
 .settings-signout h3{margin:0 0 6px}
 .settings-signout p{margin:0}
 @media(max-width:600px){.profile-editor{align-items:flex-start}.settings-signout{align-items:stretch;flex-direction:column}.settings-form .primary-button,.settings-form .secondary-button{width:100%}}
+
+/* Account recovery and password setup */
+.settings-recovery{border-top:1px solid var(--line);margin-top:18px;padding-top:16px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}.settings-recovery .muted{margin:0;max-width:680px;line-height:1.7}.settings-recovery button{white-space:normal;text-align:center;max-width:100%}.settings-form button:disabled,.settings-recovery button:disabled{opacity:.6;cursor:wait}
