@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { supabase } from './lib/supabase'
 import {
   Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, BookOpen,
   Check, CheckCircle2, ChevronDown, CircleHelp, Clock3, CloudSun, CreditCard,
@@ -45,7 +46,66 @@ export default function App() {
   const [breathing, setBreathing] = useState(false)
   const [notice, setNotice] = useState('')
   const [finance, setFinance] = useState(() => loadSavedState().finance ?? { income: '0', essentials: '0', commitments: '0' })
-  useEffect(() => {\n    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, mood, energy, stress, reflection, finance } satisfies SavedState)) }\n    catch { /* Storage may be unavailable in private browsing; the app remains usable for this session. */ }\n  }, [tasks, mood, energy, stress, reflection, finance])\n\n  const completed = tasks.filter(t => t.done).length
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const [email, setEmail] = useState('')
+  const [cloudPanel, setCloudPanel] = useState(false)
+  const [cloudMessage, setCloudMessage] = useState('')
+  const [cloudReady, setCloudReady] = useState(false)
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, mood, energy, stress, reflection, finance } satisfies SavedState)) }
+    catch { /* Storage may be unavailable in private browsing; the app remains usable for this session. */ }
+  }, [tasks, mood, energy, stress, reflection, finance])
+
+  useEffect(() => {
+    if (!supabase) return
+    let alive = true
+    supabase.auth.getSession().then(({ data }) => { if (alive) setUser(data.session?.user ?? null) })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (alive) { setUser(session?.user ?? null); setCloudReady(false) }
+    })
+    return () => { alive = false; subscription.unsubscribe() }
+  }, [])
+
+  useEffect(() => {
+    if (!supabase || !user) { setCloudReady(false); return }
+    let alive = true
+    setCloudReady(false)
+    supabase.from('user_workspace').select('data').eq('user_id', user.id).maybeSingle().then(({ data, error }) => {
+      if (!alive) return
+      if (error) setCloudMessage('Cloud data could not be loaded. Local data remains available.')
+      else if (data?.data) {
+        const saved = data.data as Partial<SavedState>
+        if (saved.tasks) setTasks(saved.tasks)
+        if (saved.mood) setMood(saved.mood)
+        if (saved.energy !== undefined) setEnergy(saved.energy)
+        if (saved.stress !== undefined) setStress(saved.stress)
+        if (saved.reflection !== undefined) setReflection(saved.reflection)
+        if (saved.finance) setFinance(saved.finance)
+      }
+      setCloudReady(true)
+    })
+    return () => { alive = false }
+  }, [user?.id])
+
+  useEffect(() => {
+    if (!supabase || !user || !cloudReady) return
+    const timer = window.setTimeout(async () => {
+      const payload = { tasks, mood, energy, stress, reflection, finance }
+      const { error } = await supabase.from('user_workspace').upsert({ user_id: user.id, data: payload }, { onConflict: 'user_id' })
+      setCloudMessage(error ? 'Cloud sync issue. Your data is still saved on this device.' : 'Synced securely to your private account.')
+    }, 650)
+    return () => window.clearTimeout(timer)
+  }, [user?.id, cloudReady, tasks, mood, energy, stress, reflection, finance])
+
+  async function sendSignInLink() {
+    if (!supabase) return
+    if (!email.trim()) { setCloudMessage('Enter your email address first.'); return }
+    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin } })
+    setCloudMessage(error ? error.message : 'Sign-in link sent. Open the email on this device to connect your account.')
+  }
+
+  const completed = tasks.filter(t => t.done).length
   const greeting = useMemo(() => {
     const hour = new Date().getHours()
     return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
@@ -73,9 +133,15 @@ export default function App() {
     </aside>
     {mobileMenu && <button className="scrim" onClick={() => setMobileMenu(false)} aria-label="Close navigation"/>}
     <main className="main">
-      <header className="topbar"><div className="topbar-left"><button className="icon-btn mobile-menu" onClick={() => setMobileMenu(true)} aria-label="Open navigation"><Menu size={20}/></button><div className="crumb">My space <span>/</span> <b>{section}</b></div></div><div className="top-actions"><button className="search-button" onClick={() => notify('Search will be available in a later step')}><Search size={16}/><span>Search anything</span><kbd>⌘ K</kbd></button><button className="icon-btn" onClick={() => notify('You’re all caught up')} aria-label="Notifications"><Bell size={18}/><i/></button><div className="top-avatar">M</div></div></header>
+      <header className="topbar"><div className="topbar-left"><button className="icon-btn mobile-menu" onClick={() => setMobileMenu(true)} aria-label="Open navigation"><Menu size={20}/></button><div className="crumb">My space <span>/</span> <b>{section}</b></div></div><div className="top-actions"><button className="search-button" onClick={() => notify('Search will be available in a later step')}><Search size={16}/><span>Search anything</span><kbd>⌘ K</kbd></button><button className="icon-btn" onClick={() => notify('You’re all caught up')} aria-label="Notifications"><Bell size={18}/><i/></button><button className="top-avatar cloud-avatar" onClick={() => setCloudPanel(v => !v)} aria-label="Cloud sync account">{user ? '✓' : 'M'}</button></div></header>
       <div className="page-content">
         {notice && <div className="notice"><CheckCircle2 size={16}/>{notice}<button onClick={() => setNotice('')}><X size={14}/></button></div>}
+        {cloudPanel && <section className="panel generic-panel cloud-panel">
+          <div className="panel-heading"><div><h3>Private cloud sync</h3><p>{user ? `Connected as ${user.email ?? 'your account'}` : 'Use a secure email link to sync your personal workspace.'}</p></div><button className="icon-btn" onClick={() => setCloudPanel(false)} aria-label="Close cloud sync"><X size={16}/></button></div>
+          {!supabase ? <p className="muted">Cloud sync needs the app’s Supabase environment settings before it can connect.</p> : user ? <div className="cloud-actions"><p className="muted">Your workspace is protected by account-level database policies.</p><button className="soft-button" onClick={async () => { await supabase.auth.signOut(); setUser(null); setCloudMessage('Signed out. Local data remains on this device.') }}>Sign out</button></div> : <form className="add-task cloud-login" onSubmit={e => { e.preventDefault(); void sendSignInLink() }}><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Your email address" autoComplete="email" required/><button type="submit">Send secure link</button></form>}
+          {cloudMessage && <p className="cloud-message">{cloudMessage}</p>}
+        </section>}
+
         {section === 'Today' && <>
           <div className="welcome-row"><div><div className="eyebrow"><CloudSun size={15}/> {dateLabel}</div><h1>{greeting}, <span>let’s take it gently.</span></h1><p className="subtitle">A little clarity. A little progress. Room to breathe.</p></div><button className="soft-button" onClick={() => selectSection('Reviews')}><BookOpen size={16}/> Daily reflection <ArrowRight size={15}/></button></div>
           <div className="hero-grid"><section className="hero-card"><div className="hero-glow glow-one"/><div className="hero-glow glow-two"/><div className="hero-content"><div className="hero-pill"><Sparkles size={13}/> YOUR DAILY RESET</div><h2>Today, intentionally.</h2><p>Make space for what matters.<br/>Let the rest be lighter.</p><button className="hero-button" onClick={() => document.getElementById('task-list')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>See my priorities <ArrowRight size={15}/></button></div><div className="hero-art"><div className="orb orb-a"/><div className="orb orb-b"/><div className="orb orb-c"/><div className="art-ring ring-a"/><div className="art-ring ring-b"/><div className="art-spark spark-a">✳</div><div className="art-spark spark-b">✧</div></div><div className="hero-footer"><span><span className="status-dot"/> YOUR DAY, YOUR PACE</span><span>01 / A FRESH PAGE</span></div></section>
@@ -92,7 +158,7 @@ export default function App() {
         {section === 'Reviews' && <><PageTitle eyebrow="NOTICE, LEARN, RESET" title="Daily reflection" sub="A few honest lines are more than enough."/><section className="panel generic-panel"><h3>Look back with kindness</h3><p className="muted">What went well, even in a small way?</p><textarea value={reflection} onChange={e=>setReflection(e.target.value)} placeholder="Today, I’m glad that…"/><div className="reflection-prompts"><button onClick={()=>setReflection(v=>v+'\nOne thing I handled well: ')}>One thing I handled well</button><button onClick={()=>setReflection(v=>v+'\nSomething I can let go of: ')}>Something to let go of</button><button onClick={()=>setReflection(v=>v+'\nTomorrow, I’ll start with: ')}>A gentle start tomorrow</button></div><button className="primary-button" onClick={()=>notify('Reflection saved on this device')}>Save reflection</button></section></>}
         {section === 'Anxiety Tracker' && <><PageTitle eyebrow="OPTIONAL · NON-DIAGNOSTIC" title="Anxiety check-in" sub="Notice what is present without judging or forcing change."/><div className="safety-note"><Heart size={18}/><span>This is a personal reflection tool, not a diagnosis or a replacement for professional care. Skip anything that doesn’t feel helpful.</span></div><section className="panel generic-panel"><h3>How intense does stress feel right now?</h3><input className="range" type="range" min="0" max="10" value={stress} onChange={e=>setStress(+e.target.value)}/><div className="range-labels"><span>Calm</span><b>{stress}/10</b><span>Very intense</span></div><h3 className="spaced-heading">What do you notice?</h3><div className="reflection-prompts">{['Racing thoughts','Tension','Restlessness','Fast heartbeat','Hard to focus','Nothing specific'].map(x=><button key={x} onClick={()=>notify(`Noted for now: ${x}`)}>{x}</button>)}</div><p className="muted safety-copy">You don’t need to fight the feeling. If symptoms are new, severe, or medically concerning, seek appropriate medical help.</p></section></>}
         {section === 'Breathe & Focus' && <><PageTitle eyebrow="A SMALL PAUSE" title="Breathe & focus" sub="No need to breathe deeply or hold your breath. Let your breathing stay comfortable."/><section className="panel breathe-panel"><div className={`breath-orb ${breathing?'breath-active':''}`}><div className="breath-orb-inner"><Wind size={30}/><span>{breathing?'Breathe gently':'A moment for you'}</span></div></div><p className="muted">{breathing?'Follow a comfortable, natural rhythm. Stop whenever you like.':'Start a gentle visual pause whenever it feels right.'}</p><button className="primary-button" onClick={()=>setBreathing(v=>!v)}>{breathing?'End pause':'Begin a gentle pause'} {breathing?<X size={16}/>:<ArrowRight size={16}/>}</button><div className="breath-footnote"><ShieldCheck size={15}/> No forced holds · No rapid breathing · Stop at any time</div></section></>}
-        <footer className="page-footer"><span>PERSONAL OS <i>·</i> MADE FOR YOUR REAL LIFE</span><span><ShieldCheck size={13}/> Saved on this device · Cloud sync setup next</span></footer>
+        <footer className="page-footer"><span>PERSONAL OS <i>·</i> MADE FOR YOUR REAL LIFE</span><span><ShieldCheck size={13}/> {user && cloudReady ? 'Private cloud sync enabled' : 'Device save enabled · Cloud sync optional'}</span></footer>
       </div>
     </main>
   </div>
