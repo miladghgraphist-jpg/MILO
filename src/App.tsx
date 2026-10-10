@@ -163,8 +163,8 @@ export default function App() {
     supabase.from('user_workspace').select('data').eq('user_id', user.id).maybeSingle().then(({ data, error }) => {
       if (!alive) return
       if (error) {
-        setCloudMessage('Cloud data could not be loaded. Local data has not been uploaded or overwritten.')
-        setCloudNeedsChoice(true)
+        setCloudMessage('Cloud data could not be loaded. Sync is paused to protect your data; retry after checking the connection. Nothing was uploaded or overwritten.')
+        setCloudNeedsChoice(false)
       } else if (data?.data && Object.keys(data.data).length > 0) {
         const saved = data.data as Partial<SavedState>
         if (saved.tasks) setTasks(normalizeTasks(saved.tasks))
