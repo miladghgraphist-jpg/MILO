@@ -294,7 +294,7 @@
 /* Persian glyphs: verified WOFF2 asset; unicode-range keeps existing Latin typography intact. */
 @font-face {
   font-family: 'Peyda';
-  src: url('https://cdn.jsdelivr.net/gh/Mo3Beh/Fonts@main/Fonts/Peyda.woff2') format('woff2');
+  src: url('https://cdn.jsdelivr.net/gh/Mo3Beh/Fonts@main/Peyda.woff2') format('woff2');
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
