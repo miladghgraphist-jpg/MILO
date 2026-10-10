@@ -291,28 +291,16 @@
 @media(max-width:420px){.login-card{padding:23px 20px 18px;border-radius:16px}.login-heading h1{font-size:21px}}
 
 
-/* Persian typography: load the actual Peyda webfont and apply it even where RTL/lang attributes are missing. */
+/* Persian glyphs: verified WOFF2 asset; unicode-range keeps existing Latin typography intact. */
 @font-face {
   font-family: 'Peyda';
-  src: url('https://cdn.jsdelivr.net/gh/rastikerdar/peyda-font@v1.0.0/dist/woff2/PeydaWeb-Regular.woff2') format('woff2');
+  src: url('https://cdn.jsdelivr.net/gh/Mo3Beh/Fonts@main/Fonts/Peyda.woff2') format('woff2');
   font-style: normal;
-  font-weight: 400;
+  font-weight: 100 900;
   font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
 }
-@font-face {
-  font-family: 'Peyda';
-  src: url('https://cdn.jsdelivr.net/gh/rastikerdar/peyda-font@v1.0.0/dist/woff2/PeydaWeb-Medium.woff2') format('woff2');
-  font-style: normal;
-  font-weight: 500 600;
-  font-display: swap;
+/* Place Peyda first on all elements; the unicode-range limits it to Persian/Arabic glyphs. */
+*, *::before, *::after {
+  font-family: 'Peyda', 'DM Sans', sans-serif !important;
 }
-@font-face {
-  font-family: 'Peyda';
-  src: url('https://cdn.jsdelivr.net/gh/rastikerdar/peyda-font@v1.0.0/dist/woff2/PeydaWeb-Bold.woff2') format('woff2');
-  font-style: normal;
-  font-weight: 700 900;
-  font-display: swap;
-}
-:root { font-family: 'Peyda', 'DM Sans', sans-serif; --persian-font: 'Peyda', 'DM Sans', sans-serif; }
-body, button, input, textarea, select { font-family: 'Peyda', 'DM Sans', sans-serif; }
-[dir="rtl"], [dir="rtl"] *, :lang(fa), :lang(fa) * { font-family: 'Peyda', 'DM Sans', sans-serif; }
