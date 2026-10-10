@@ -357,34 +357,8 @@ export default function App() {
   }
   const notify = (message: string) => { setNotice(message); window.setTimeout(() => setNotice(''), 3200) }
 
-  if (!user || authMode === 'update') {
-    return <main className="login-screen">
-      <div className="login-glow login-glow-one"/>
-      <div className="login-glow login-glow-two"/>
-      <section className="login-card">
-        <div className="login-brand">
-          <div className="login-mark"><Sparkles size={18}/></div>
-          <span>personal<span className="login-brand-accent">.os</span></span>
-        </div>
-        <div className="login-heading">
-          <span className="login-eyebrow">{authMode === 'reset' ? 'ACCOUNT RECOVERY' : authMode === 'update' ? 'SECURE YOUR ACCOUNT' : 'YOUR SPACE, YOUR PACE'}</span>
-          <h1>{authMode === 'reset' ? 'Reset password' : authMode === 'update' ? 'Choose a new password' : authMode === 'signup' ? 'Create account' : 'Welcome back'}</h1>
-          <p>{authMode === 'reset' ? 'We’ll send you a secure reset link.' : authMode === 'update' ? 'Set a new password for your account.' : authMode === 'signup' ? 'Create your private workspace.' : 'Sign in to your personal space.'}</p>
-        </div>
-        {!supabase && <p className="login-message login-error">Sign-in is unavailable because authentication is not configured.</p>}
-        <form className="login-form" onSubmit={e=>{e.preventDefault();void handleAuthSubmit()}}>
-          {authMode !== 'update' && <label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required autoFocus/></label>}
-          {authMode !== 'reset' && <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder={authMode === 'update' ? 'New password (8+ characters)' : 'Enter your password'} autoComplete={authMode === 'update' ? 'new-password' : 'current-password'} minLength={8} required autoFocus={authMode==='update'}/></label>}
-          {authMode === 'signin' && <button type="button" className="login-forgot" onClick={()=>{setAuthMode('reset');setCloudMessage('')}}>Forgot password?</button>}
-          <button className="login-submit" type="submit" disabled={profileSaving || !supabase}>{profileSaving ? 'Please wait…' : authMode === 'reset' ? 'Send reset link' : 'Sign in'}<ArrowRight size={15}/></button>
-        </form>
-        {cloudMessage && <p className={`login-message ${/could not|incorrect|failed|unavailable|error|temporarily|limited|not configured/i.test(cloudMessage)?'login-error':'login-success'}`} role="status">{cloudMessage}</p>}
-        {authMode === 'signin' && <button className="login-back" onClick={()=>{setAuthMode('signup');setCloudMessage('');setPassword('')}}>Create account</button>}{authMode !== 'signin' && authMode !== 'update' && <button className="login-back" onClick={()=>{setAuthMode('signin');setCloudMessage('');setPassword('')}}>Back to sign in</button>}
-        <div className="login-footer"><span className="login-footer-dot"/> PRIVATE PERSONAL WORKSPACE</div>
-      </section>
-    </main>
-  }
-
+  // Temporary access mode: do not block the local dashboard behind Supabase login.
+  // Cloud sign-in remains available from the account panel; local workspace storage is unchanged.
   return <div className="app-shell">
     <aside className={`sidebar ${mobileMenu ? 'sidebar-open' : ''}`}>
       <div className="brand"><div className="brand-mark"><Sparkles size={21}/></div><div><strong>personal<span>.</span>os</strong><small>YOUR SPACE, YOUR PACE</small></div><button className="icon-btn close-menu" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={18}/></button></div>
