@@ -289,3 +289,13 @@
 .login-footer{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:24px;color:#a7a1b6;font-size:8px;letter-spacing:1.1px;font-weight:600}
 .login-footer-dot{width:5px;height:5px;border-radius:50%;background:linear-gradient(135deg,#a18be8,#d8a0cc)}
 @media(max-width:420px){.login-card{padding:23px 20px 18px;border-radius:16px}.login-heading h1{font-size:21px}}
+
+
+/* Persian typography: Peyda for Persian/Arabic-script text, preserving the existing Latin UI font. */
+@import url('https://cdn.jsdelivr.net/gh/AmirAbbasVafaee/persian-fonts-cdn@main/css/peyda.css');
+:root { --persian-font: 'Peyda', 'PeydaWeb', sans-serif; }
+:lang(fa), :lang(fa) *, [dir="rtl"], [dir="rtl"] *,
+input, textarea, button, select {
+  font-family: var(--persian-font), 'DM Sans', sans-serif;
+}
+/* Keep the existing Manrope brand/display treatment for Latin headings, while Persian glyphs use Peyda. */
