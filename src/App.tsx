@@ -114,6 +114,8 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [cloudMessage, setCloudMessage] = useState('')
   const [cloudReady, setCloudReady] = useState(false)
+  const [cloudSyncAllowed, setCloudSyncAllowed] = useState(false)
+  const [cloudNeedsChoice, setCloudNeedsChoice] = useState(false)
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, events, mood, energy, stress, reflection, goal, financeNote, reflections, history, finance, transactions, goals } satisfies SavedState)) }
@@ -156,10 +158,14 @@ export default function App() {
     if (!supabase || !user) { setCloudReady(false); return }
     let alive = true
     setCloudReady(false)
+    setCloudSyncAllowed(false)
+    setCloudNeedsChoice(false)
     supabase.from('user_workspace').select('data').eq('user_id', user.id).maybeSingle().then(({ data, error }) => {
       if (!alive) return
-      if (error) setCloudMessage('Cloud data could not be loaded. Local data remains available.')
-      else if (data?.data) {
+      if (error) {
+        setCloudMessage('Cloud data could not be loaded. Sync is paused to protect your data; retry after checking the connection. Nothing was uploaded or overwritten.')
+        setCloudNeedsChoice(false)
+      } else if (data?.data && Object.keys(data.data).length > 0) {
         const saved = data.data as Partial<SavedState>
         if (saved.tasks) setTasks(normalizeTasks(saved.tasks))
         if (saved.events) setEvents(saved.events)
@@ -174,6 +180,11 @@ export default function App() {
         if (saved.finance) setFinance(saved.finance)
         if (saved.transactions) setTransactions(saved.transactions)
         if (saved.goals) setGoals(saved.goals)
+        setCloudSyncAllowed(true)
+        setCloudMessage('Your account workspace loaded. Cloud sync is ready.')
+      } else {
+        setCloudNeedsChoice(true)
+        setCloudMessage('This account has no saved workspace yet. Your device data will not be uploaded unless you choose to use it for this account.')
       }
       setCloudReady(true)
     })
@@ -182,14 +193,21 @@ export default function App() {
 
   useEffect(() => {
     const client = supabase
-    if (!client || !user || !cloudReady) return
+    if (!client || !user || !cloudReady || !cloudSyncAllowed) return
     const timer = window.setTimeout(async () => {
       const payload = { tasks, events, mood, energy, stress, reflection, goal, financeNote, reflections, history, finance, transactions, goals }
       const { error } = await client.from('user_workspace').upsert({ user_id: user.id, data: payload }, { onConflict: 'user_id' })
       setCloudMessage(error ? 'Cloud sync issue. Your data is still saved on this device.' : 'Synced securely to your private account.')
     }, 650)
     return () => window.clearTimeout(timer)
-  }, [user?.id, cloudReady, tasks, events, mood, energy, stress, reflection, goal, financeNote, reflections, history, finance, transactions, goals])
+  }, [user?.id, cloudReady, cloudSyncAllowed, tasks, events, mood, energy, stress, reflection, goal, financeNote, reflections, history, finance, transactions, goals])
+
+  // Fresh auth flow: use the deployed app base path for every email callback,
+  // and never retry automatically when Supabase's email provider rejects or throttles a request.
+  function authRedirectUrl() {
+    const base = import.meta.env.BASE_URL || '/'
+    return new URL(base.endsWith('/') ? base : `${base}/`, window.location.origin).toString()
+  }
 
   async function handleAuthSubmit() {
     if (!supabase || profileSaving) return
@@ -200,7 +218,7 @@ export default function App() {
     setCloudMessage('')
     try {
       if (authMode === 'reset') {
-        const redirectUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+        const redirectUrl = authRedirectUrl()
         const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: redirectUrl })
         if (error) {
           const message = error.message.toLowerCase()
@@ -222,13 +240,13 @@ export default function App() {
         if (error) {
           const message = error.message.toLowerCase()
           setCloudMessage(message.includes('rate limit') ? 'Email sending is temporarily limited. Wait before trying again; creating or deleting accounts does not clear this limit.' : message.includes('already registered') || message.includes('already exists') ? 'This email may already have an account. Try Sign in or Forgot password instead of creating another account.' : `Could not create account: ${error.message}`)
-        } else setCloudMessage(data.session ? 'Account created and signed in.' : 'Account request created. Check your inbox for confirmation before signing in.')
+        } else setCloudMessage(data.session ? 'Account created and signed in. Your private workspace is opening.' : 'Signup request accepted. Check your email inbox (and spam folder) for the confirmation link. Open it to return to this app, then sign in. If no email arrives, wait before retrying; repeated requests can trigger the provider’s rate limit.')
         return
       }
       const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password })
       if (error) {
         const message = error.message.toLowerCase()
-        setCloudMessage(message.includes('invalid login credentials') ? 'Email or password is incorrect. If you originally used an email sign-in link, use Forgot password to set a password.' : `Could not sign in: ${error.message}`)
+        setCloudMessage(message.includes('email not confirmed') ? 'This account’s email is not confirmed yet. Open the latest confirmation email first; if it has expired, request a fresh one only after the email provider’s rate limit clears.' : message.includes('invalid login credentials') ? 'Email or password is incorrect. If you originally used an email sign-in link, use Forgot password to set a password.' : `Could not sign in: ${error.message}`)
       } else setCloudMessage('Signed in successfully. Loading your private workspace…')
     } catch (error) {
       setCloudMessage(error instanceof Error ? `Request failed: ${error.message}` : 'The request failed. Please try again.')
@@ -377,11 +395,12 @@ export default function App() {
         {notice && <div className="notice"><CheckCircle2 size={16}/>{notice}<button onClick={() => setNotice('')}><X size={14}/></button></div>}
         {cloudPanel && <section className="panel generic-panel cloud-panel">
           <div className="panel-heading"><div><h3>{user ? 'Your account' : authMode === 'signup' ? 'Create your account' : authMode === 'reset' ? 'Reset your password' : 'Sign in to your account'}</h3><p>{user ? `Connected as ${user.email ?? 'your account'}` : authMode === 'reset' ? 'We’ll email you a secure password reset link.' : 'Sign in with the email you used on your phone and your password.'}</p></div><button className="icon-btn" onClick={() => setCloudPanel(false)} aria-label="Close account panel"><X size={16}/></button></div>
-          {!supabase ? <p className="muted">Cloud sync needs the app’s Supabase environment settings before it can connect.</p> : user ? <div className="cloud-actions"><p className="muted">Your workspace is protected by account-level database policies.</p><button className="soft-button" onClick={async () => { await supabase?.auth.signOut(); setUser(null); setAuthMode('signin'); setPassword(''); setCloudMessage('Signed out. Local data remains on this device.') }}>Sign out</button></div> : <form className="add-task cloud-login" onSubmit={e => { e.preventDefault(); void handleAuthSubmit() }}>
+          {!supabase ? <p className="muted">Cloud sync needs the app’s Supabase environment settings before it can connect.</p> : user ? <div className="cloud-actions"><p className="muted">Your workspace is protected by account-level database policies.</p><button className="soft-button" onClick={async () => { await supabase?.auth.signOut(); setUser(null); setCloudSyncAllowed(false); setCloudNeedsChoice(false); setAuthMode('signin'); setPassword(''); setCloudMessage('Signed out. Local data remains on this device.') }}>Sign out</button></div> : <form className="add-task cloud-login" onSubmit={e => { e.preventDefault(); void handleAuthSubmit() }}>
             {<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" autoComplete="email" required/>}
             {authMode !== 'reset' && <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password (at least 8 characters)" autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} minLength={8} required/>}
             <button type="submit" disabled={profileSaving}>{profileSaving ? 'Please wait…' : authMode === 'signup' ? 'Create account' : authMode === 'reset' ? 'Send reset link' : 'Sign in'}</button>
           </form>}
+          {user && cloudNeedsChoice && <div className="cloud-actions"><p className="muted">For privacy, existing device data is kept separate from this account until you choose. If you continue, the current data on this device will be uploaded to this account and may replace its empty workspace.</p><button className="soft-button" onClick={() => { setCloudNeedsChoice(false); setCloudSyncAllowed(true); setCloudMessage('Using this device’s current workspace for this account. Cloud sync will begin shortly.') }}>Use this device’s data for this account</button><button className="soft-button" onClick={() => { setCloudNeedsChoice(false); setCloudMessage('Cloud sync remains paused. Your device data is unchanged.') }}>Keep data separate</button></div>}
           {!user && authMode === 'signin' && <div className="auth-links"><button onClick={() => { setAuthMode('reset'); setCloudMessage('') }}>Forgot password?</button><button onClick={() => { setAuthMode('signup'); setCloudMessage('') }}>Create account</button></div>}
           {!user && authMode !== 'signin' && <div className="auth-links"><button onClick={() => { setAuthMode('signin'); setCloudMessage(''); setPassword('') }}>Back to sign in</button></div>}
           {cloudMessage && <p className="cloud-message">{cloudMessage}</p>}
