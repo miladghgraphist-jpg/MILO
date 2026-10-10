@@ -191,6 +191,13 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [user?.id, cloudReady, tasks, events, mood, energy, stress, reflection, goal, financeNote, reflections, history, finance, transactions, goals])
 
+  // Fresh auth flow: use the deployed app base path for every email callback,
+  // and never retry automatically when Supabase's email provider rejects or throttles a request.
+  function authRedirectUrl() {
+    const base = import.meta.env.BASE_URL || '/'
+    return new URL(base.endsWith('/') ? base : `${base}/`, window.location.origin).toString()
+  }
+
   async function handleAuthSubmit() {
     if (!supabase || profileSaving) return
     const cleanEmail = email.trim().toLowerCase()
@@ -200,7 +207,7 @@ export default function App() {
     setCloudMessage('')
     try {
       if (authMode === 'reset') {
-        const redirectUrl = new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+        const redirectUrl = authRedirectUrl()
         const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: redirectUrl })
         if (error) {
           const message = error.message.toLowerCase()
@@ -222,13 +229,13 @@ export default function App() {
         if (error) {
           const message = error.message.toLowerCase()
           setCloudMessage(message.includes('rate limit') ? 'Email sending is temporarily limited. Wait before trying again; creating or deleting accounts does not clear this limit.' : message.includes('already registered') || message.includes('already exists') ? 'This email may already have an account. Try Sign in or Forgot password instead of creating another account.' : `Could not create account: ${error.message}`)
-        } else setCloudMessage(data.session ? 'Account created and signed in.' : 'Account request created. Check your inbox for confirmation before signing in.')
+        } else setCloudMessage(data.session ? 'Account created and signed in. Your private workspace is opening.' : 'Signup request accepted. Check your email inbox (and spam folder) for the confirmation link. Open it to return to this app, then sign in. If no email arrives, wait before retrying; repeated requests can trigger the provider’s rate limit.')
         return
       }
       const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password })
       if (error) {
         const message = error.message.toLowerCase()
-        setCloudMessage(message.includes('invalid login credentials') ? 'Email or password is incorrect. If you originally used an email sign-in link, use Forgot password to set a password.' : `Could not sign in: ${error.message}`)
+        setCloudMessage(message.includes('email not confirmed') ? 'This account’s email is not confirmed yet. Open the latest confirmation email first; if it has expired, request a fresh one only after the email provider’s rate limit clears.' : message.includes('invalid login credentials') ? 'Email or password is incorrect. If you originally used an email sign-in link, use Forgot password to set a password.' : `Could not sign in: ${error.message}`)
       } else setCloudMessage('Signed in successfully. Loading your private workspace…')
     } catch (error) {
       setCloudMessage(error instanceof Error ? `Request failed: ${error.message}` : 'The request failed. Please try again.')
